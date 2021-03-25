@@ -45,6 +45,6 @@ service MatrixMult {
 }
 
 service MatrixForming {
-	rpc input_splitting(SplitInput) returns (Output);
+	rpc input_splitting(stream SplitInput) returns (Output);
 	rpc output_merging(MergeInput) returns (Output);
 }

@@ -25,15 +25,15 @@ public class Client {
 		ClientHelper
 				.splitInputs(ClientStorage.A, 1,1,
 					ClientStorage.A00, ClientStorage.A01, ClientStorage.A10, ClientStorage.A11);
-		//ClientHelper
-		//		.splitInputs(ClientStorage.B, 2,5,
-		//			ClientStorage.B00, ClientStorage.B01, ClientStorage.B10, ClientStorage.B11);
+		ClientHelper
+				.splitInputs(ClientStorage.B, 2,1,
+					ClientStorage.B00, ClientStorage.B01, ClientStorage.B10, ClientStorage.B11);
 
 
 		// however, other blocks could have large(r) values
-		//ClientConfig.GRPC_SERVER_FOOTPRINT = ClientHelper
-		//		.getFootprint(ClientStorage.A00, ClientStorage.A01, ClientStorage.blockSize);
-		//ClientConfig.GRPC_SERVERS_NEEDED = (int) (ClientConfig.GRPC_SERVER_FOOTPRINT/ClientConfig.GRPC_SERVER_DEADLINE);
+		ClientConfig.GRPC_SERVER_FOOTPRINT = ClientHelper
+				.getFootprint(ClientStorage.A00, ClientStorage.A01, ClientStorage.blockSize);
+		ClientConfig.GRPC_SERVERS_NEEDED = (int) (ClientConfig.GRPC_SERVER_FOOTPRINT/ClientConfig.GRPC_SERVER_DEADLINE);
 
 
 

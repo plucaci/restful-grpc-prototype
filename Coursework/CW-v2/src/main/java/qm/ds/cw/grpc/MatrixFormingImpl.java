@@ -59,26 +59,42 @@ public class MatrixFormingImpl extends MatrixFormingImplBase {
     }
 
     @Override
-    public void inputSplitting(
-            SplitInput request, StreamObserver<Output> responseObserver) {
-        System.out.println("[INPUT SPLIT] Request received from client:\n" + request);
+    public StreamObserver<SplitInput> inputSplitting(StreamObserver<Output> responseObserver) {
 
-        int inputSize = request.getInputSize();
-        int[][] input = Utils.toArray(inputSize, request.getInput());
+        return new StreamObserver<SplitInput>() {
+            @Override
+            public void onNext(SplitInput value) {
+                System.out.println("[INPUT SPLIT] Request received from client:\n" + value);
 
-        int blockSize = request.getBlockSize();
-        int tile = request.getTile();
-        int[][] outputBlockC = inputSplitting(input, inputSize, blockSize, tile);
+                int inputSize = value.getInputSize();
+                int[][] input = Utils.toArray(inputSize, value.getInput());
 
-        Output blockResponse = Output.newBuilder()
-                .setOutput(Utils.toMatrix(outputBlockC))
-                .setSize(blockSize)
-                .setTile(tile)
-                .setMatrixIndex(request.getMatrixIndex())
-                .build();
+                int blockSize = value.getBlockSize();
+                int tile = value.getTile();
+                int[][] outputBlockC = inputSplitting(input, inputSize, blockSize, tile);
 
-        responseObserver.onNext(blockResponse);
-        // responseObserver.onCompleted();
+                Output blockResponse = Output.newBuilder()
+                        .setOutput(Utils.toMatrix(outputBlockC))
+                        .setSize(blockSize)
+                        .setTile(tile)
+                        .setMatrixIndex(value.getMatrixIndex())
+                        .build();
+
+                responseObserver.onNext(blockResponse);
+                responseObserver.onCompleted();
+            }
+
+            @Override
+            public void onError(Throwable t) {
+
+            }
+
+            @Override
+            public void onCompleted() {
+
+            }
+        };
+
     }
 
 
@@ -118,8 +134,7 @@ public class MatrixFormingImpl extends MatrixFormingImplBase {
     }
 
     @Override
-    public void outputMerging(
-            MergeInput request, StreamObserver<Output> responseObserver) {
+    public void outputMerging(MergeInput request, StreamObserver<Output> responseObserver) {
         System.out.println("[OUTPUT MERGE] Request received from client:\n" + request);
 
         int blockSize = request.getBlockSize();
