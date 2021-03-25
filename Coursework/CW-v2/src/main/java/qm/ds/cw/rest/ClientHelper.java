@@ -27,7 +27,7 @@ class ClientHelper {
 
 		ArrayList<int[][]> outputBlocksArrays = new ArrayList<>();
 
-		final CountDownLatch latch = new CountDownLatch(4);
+		final CountDownLatch latch = new CountDownLatch(1);
 
 		StreamObserver<Output> outputObserver = new StreamObserver<Output>() {
 			@Override
@@ -37,6 +37,7 @@ class ClientHelper {
 
 				outputBlocksArrays.add(value.getTile(), Utils.toArray(value.getSize(), value.getOutput()));
 				System.out.println("[INPUT SPLIT] Number of current splits: " + outputBlocksArrays.size());
+				// this.onCompleted();
 			}
 
 			@Override
@@ -44,15 +45,16 @@ class ClientHelper {
 
 			@Override
 			public void onCompleted() {
-				//latch.countDown();
 
 				if (outputBlocksArrays.size() == 4) {
 					System.out.println("We got 4 splits!");
+					latch.countDown();
 				}
 
 			}
 		};
 
+		// void calls in async, only in blocking stubs are defined the same proto functions that are non-void
 		MatrixFormingGrpc.newStub(ClientConfig.GRPC_Channels.get(portIndex)).inputSplitting(splitInputBuilder.setTile(0).build(), outputObserver);
 		MatrixFormingGrpc.newStub(ClientConfig.GRPC_Channels.get(++portIndex)).inputSplitting(splitInputBuilder.setTile(1).build(), outputObserver);
 		MatrixFormingGrpc.newStub(ClientConfig.GRPC_Channels.get(++portIndex)).inputSplitting(splitInputBuilder.setTile(2).build(), outputObserver);
@@ -76,20 +78,18 @@ class ClientHelper {
 		 * 		split3.onNext(settingBuilder.setTile(3).build());
 		 * */
 
-		/**
-		 *
-		 * 		try {
-		 * 			latch.await();
-		 *
-		 * 			in00 = outputBlocksArrays.get(0);
-		 * 			in01 = outputBlocksArrays.get(1);
-		 * 			in10 = outputBlocksArrays.get(2);
-		 * 			in11 = outputBlocksArrays.get(3);
-		 *
-		 *      } catch (InterruptedException e) {
-		 * 			e.printStackTrace();
-		 *      }
-		 * */
+		try {
+			latch.await();
+
+			// in00 = outputBlocksArrays.get(0);
+			// in01 = outputBlocksArrays.get(1);
+			// in10 = outputBlocksArrays.get(2);
+			// in11 = outputBlocksArrays.get(3);
+
+		} catch (InterruptedException e){
+				e.printStackTrace();
+		}
+
 	}
 
 	public static long getFootprint(int[][] a, int[][] b, int blockSize) {
