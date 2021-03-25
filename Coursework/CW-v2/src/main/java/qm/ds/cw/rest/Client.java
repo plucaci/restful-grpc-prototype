@@ -22,10 +22,12 @@ public class Client {
 	@RequestMapping(value = "/resolve", method = RequestMethod.GET)
 	public Response compute() {
 
-		ClientHelper
+		ClientHelper clientHelper = new ClientHelper();
+
+		clientHelper
 				.splitInputs(ClientStorage.A, 1,1,
 					ClientStorage.A00, ClientStorage.A01, ClientStorage.A10, ClientStorage.A11);
-		ClientHelper
+		clientHelper
 				.splitInputs(ClientStorage.B, 2,1,
 					ClientStorage.B00, ClientStorage.B01, ClientStorage.B10, ClientStorage.B11);
 

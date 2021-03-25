@@ -81,14 +81,12 @@ public class MatrixFormingImpl extends MatrixFormingImplBase {
                         .build();
 
                 responseObserver.onNext(blockResponse);
-                responseObserver.onCompleted();
             }
 
             @Override
             public void onError(Throwable t) {
 
             }
-
             @Override
             public void onCompleted() {
 

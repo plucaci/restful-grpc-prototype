@@ -17,7 +17,27 @@ import qm.ds.cw.utils.Utils;
 
 class ClientHelper {
 
-	public static void splitInputs(int[][] input, int matrixIndex, int portIndex, int[][] in00, int[][] in01, int[][] in10, int[][] in11) {
+	public ClientHelper () {}
+
+	private CountDownLatch splitLatch = new CountDownLatch(4);
+	private ArrayList<int[][]> outputBlocksArrays = new ArrayList<>();
+
+	public synchronized void onNextSplit(Output split) {
+		System.out.println("[INPUT SPLIT] Received from server tile " + split.getTile()
+				+ " for matrix with index " + split.getMatrixIndex());
+
+		this.outputBlocksArrays.add(split.getTile(), Utils.toArray(split.getSize(), split.getOutput()));
+		System.out.println("[INPUT SPLIT] Number of current splits: " + this.outputBlocksArrays.size());
+
+		this.splitLatch.countDown();
+		System.out.println("Latches left: " + this.splitLatch.getCount());
+
+		if (this.outputBlocksArrays.size() == 4) {
+			System.out.println("We got 4 splits!");
+		}
+	}
+
+	public void splitInputs(int[][] input, int matrixIndex, int portIndex, int[][] in00, int[][] in01, int[][] in10, int[][] in11) {
 
 		Matrix inMatrix = Utils.toMatrix(input);
 
@@ -27,31 +47,19 @@ class ClientHelper {
 				.setInputSize(ClientStorage.inputSize)
 				.setBlockSize(ClientStorage.blockSize);
 
-		ArrayList<int[][]> outputBlocksArrays = new ArrayList<>();
-
-		final CountDownLatch latch = new CountDownLatch(4);
-
 		StreamObserver<Output> outputObserver = new StreamObserver<Output>() {
 			@Override
 			public void onNext(Output value) {
-				System.out.println("[INPUT SPLIT] Received from server tile " + value.getTile()
-												  + " for matrix with index " + value.getMatrixIndex());
-
-				outputBlocksArrays.add(value.getTile(), Utils.toArray(value.getSize(), value.getOutput()));
-				System.out.println("[INPUT SPLIT] Number of current splits: " + outputBlocksArrays.size());
+				onNextSplit(value);
 			}
 
 			@Override
-			public void onError(Throwable t) { }
+			public void onError(Throwable t) {
 
+			}
 			@Override
 			public void onCompleted() {
 
-				if (outputBlocksArrays.size() == 4) {
-					System.out.println("We got 4 splits!");
-				}
-				latch.countDown();
-				System.out.println("Latches left: " + latch.getCount());
 			}
 		};
 
@@ -69,8 +77,7 @@ class ClientHelper {
 				.inputSplitting( outputObserver ); split3.onNext(splitInputBuilder.setTile(3).build());
 
 		try {
-			System.out.println("WE GOT HERE");
-			latch.await();
+			this.splitLatch.await();
 
 			in00 = outputBlocksArrays.get(0);
 			in01 = outputBlocksArrays.get(1);
