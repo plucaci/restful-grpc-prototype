@@ -37,7 +37,7 @@ class ClientHelper {
 
 				outputBlocksArrays.add(value.getTile(), Utils.toArray(value.getSize(), value.getOutput()));
 				System.out.println("[INPUT SPLIT] Number of current splits: " + outputBlocksArrays.size());
-				// this.onCompleted();
+				this.onCompleted();
 			}
 
 			@Override
