@@ -30,23 +30,49 @@ public class StockController {
 	}
 	
 	@GetMapping("/stock/addItem")
-	public Stock addItem(@RequestParam(value = "item", defaultValue = "") String item) {
-		return this.getStockInstance().addItem(item);
+	public Response addItem(@RequestParam(value = "item", defaultValue = "") String item) {
+		
+		Stock addItem = this.getStockInstance().addItem(item.toLowerCase());
+		
+		if (addItem == null) {
+			return new ResponseErrors("Invalid Operation");
+		}
+		return addItem;
 	}
 	
 	@GetMapping("/stock/setStock")
-	public Stock setStock(@RequestParam(value = "item", defaultValue = "") String item, @RequestParam(value = "stockLevel", defaultValue = "") int stockLevel) {
-		return this.getStockInstance().setStock(item, stockLevel);
+	public Response setStock(@RequestParam(value = "item", defaultValue = "") String item, 
+			@RequestParam(value = "stockLevel", defaultValue = "") int stockLevel) {
+		
+		Stock setStock = this.getStockInstance().setStock(item.toLowerCase(), stockLevel);
+		
+		if (setStock == null) {
+			return new ResponseErrors("Invalid Operation");
+		}
+		return setStock;
 	}
 	
 	@GetMapping("/stock/addStock")
-	public Stock addStock(@RequestParam(value = "item", defaultValue = "") String item, @RequestParam(value = "numItem", defaultValue = "") int numItem) {
-		return this.getStockInstance().addStock(item, numItem);
+	public Response addStock(@RequestParam(value = "item", defaultValue = "") String item, 
+			@RequestParam(value = "numItem", defaultValue = "") int numItem) {
+		
+		Stock addStock = this.getStockInstance().addStock(item.toLowerCase(), numItem);
+		
+		if (addStock == null) {
+			return new ResponseErrors("Invalid Operation");
+		}
+		return addStock;
 	}
 	
 	@GetMapping("/stock/removeStock")
-	public Stock removeStock(@RequestParam(value = "item", defaultValue = "") String item, @RequestParam(value = "numItem", defaultValue = "") int numItem) {
-		return this.getStockInstance().removeStock(item, numItem);
+	public Response removeStock(@RequestParam(value = "item", defaultValue = "") String item, 
+			@RequestParam(value = "numItem", defaultValue = "") int numItem) {
+		
+		Stock removeStock = this.getStockInstance().removeStock(item.toLowerCase(), numItem);
+		
+		if (removeStock == null) {
+			return new ResponseErrors("Invalid Operation");
+		}
+		return removeStock;
 	}
-	
 }

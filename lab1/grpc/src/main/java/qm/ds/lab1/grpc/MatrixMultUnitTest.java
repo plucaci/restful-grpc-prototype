@@ -102,7 +102,7 @@ public class MatrixMultUnitTest {
 			
 			for (int i=0; i<expectedC.length; i++) {
 				Assert.assertArrayEquals(expectedC[i], realC[i]);
-			}		
+			}
 		}
 	}
 }

@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_generic_services = true;
+
+package qm.ds.cw.grpc;
+
+message Matrix {
+	repeated int32 flatten = 1;
+}
+
+message SplitInput {
+	Matrix input = 1;
+	int32 inputSize = 2;
+	int32 matrixIndex = 3;
+	int32 blockSize = 4;
+	int32 tile = 5;
+}
+
+message MergeInput {
+	Matrix C00 = 1;
+	Matrix C01 = 2;
+	Matrix C10 = 3;
+	Matrix C11 = 4;
+	int32 inputSize = 5;
+	int32 blockSize = 6;
+}
+
+message InputBlocks {
+	Matrix blockA = 1;
+	Matrix blockB = 2;
+	int32 blockSize = 3;
+}
+
+message Output {
+	Matrix output = 1;
+	int32 size = 2;
+	int32 matrixIndex = 3;
+	int32 tile = 4;
+}
+
+service MatrixMult {
+	rpc multiply_block(InputBlocks) returns (Output);
+	rpc add_block(InputBlocks) returns (Output);
+}
+
+service MatrixForming {
+	rpc input_splitting(SplitInput) returns (Output);
+	rpc output_merging(MergeInput) returns (Output);
+}

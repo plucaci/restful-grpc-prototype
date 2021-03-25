@@ -3,7 +3,7 @@ package qm.ds.lab2.restservice;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Stock {
+public class Stock implements Response{
 
 	private final long id;
 	private static Map <String, Integer> stock = new HashMap <String, Integer> ();
@@ -31,22 +31,49 @@ public class Stock {
 			return this;
 		}
 		
-		return null; // return err view here
+		return null; // return an error
 	}
 	
-	public Stock changeStock(String item, int n) {
+	public Stock setStock (String item, int stockLevel) {
 		
-		if (this.entryIsValid(item, n) && this.getStock().containsKey(item)) {
+		if (this.entryIsValid(item, stockLevel) && this.getStock().containsKey(item)) {
 			
-			this.getStock().put(item, n);
+			this.getStock().put(item, stockLevel);
 			return this;
 		}
 		
-		return null; // return err view here
-		
+		return null; // return an error
 	}
 	
-	public Stock setStock (String item, int stockLevel) { return this.changeStock(item, stockLevel); }
-	public Stock addStock    (String item, int numItem) { return this.changeStock(item, getStock().get(item) +numItem); }
-	public Stock removeStock (String item, int numItem) { return this.changeStock(item, getStock().get(item) -numItem); }
+	public Stock addStock (String item, int numItem) {
+		
+		if (this.entryIsValid(item, numItem) && this.getStock().containsKey(item)) {
+			
+			int newLevel = getStock().get(item) +numItem;
+			if (newLevel < 0) {
+				return null; // return an error
+			}
+			
+			this.getStock().put(item, getStock().get(item) +numItem);
+			return this;
+		}
+		
+		return null; // return an error
+	}
+	
+	public Stock removeStock (String item, int numItem) {
+		
+		if (this.entryIsValid(item, numItem) && this.getStock().containsKey(item)) {
+			
+			int newLevel = getStock().get(item) -numItem;
+			if (newLevel < 0) {
+				return null;
+			}
+			
+			this.getStock().put(item, getStock().get(item) -numItem);
+			return this;
+		}
+		
+		return null; // return an error
+	}
 }
