@@ -3,7 +3,9 @@ package qm.ds.cw.rest;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,29 +21,55 @@ import qm.ds.cw.utils.Utils;
 @RestController
 public class Client {
 
+	private ClientHelper clientHelper;
+	private ClientHelper getClientHelper() {
+		if (this.clientHelper ==  null) {
+			this.clientHelper = new ClientHelper(this.getClientConfig(), this.getClientStorage());
+		}
+		return this.clientHelper;
+	}
+
+	private ClientConfig clientConfig;
+	private ClientConfig getClientConfig() {
+		if (this.clientConfig == null) {
+			this.clientConfig = new ClientConfig();
+		}
+		return this.clientConfig;
+	}
+
+	private ClientStorage clientStorage;
+	private ClientStorage getClientStorage() {
+		if (this.clientStorage == null) {
+			this.clientStorage = new ClientStorage();
+		}
+		return this.clientStorage;
+	}
+
+	@Autowired()
+	public Client() { }
+
 	@RequestMapping(value = "/resolve", method = RequestMethod.GET)
 	public Response compute() {
 
-		ClientHelper clientHelper = new ClientHelper();
-
-		clientHelper
-				.splitInputs(ClientStorage.A, 1,1,
-					ClientStorage.A00, ClientStorage.A01, ClientStorage.A10, ClientStorage.A11);
-		clientHelper
-				.splitInputs(ClientStorage.B, 2,1,
-					ClientStorage.B00, ClientStorage.B01, ClientStorage.B10, ClientStorage.B11);
+		getClientHelper()
+				.splitInputs(getClientStorage().A, 1,1,
+						getClientStorage().A00, getClientStorage().A01, getClientStorage().A10, getClientStorage().A11);
+		getClientHelper()
+				.splitInputs(getClientStorage().B, 2,1,
+						getClientStorage().B00, getClientStorage().B01, getClientStorage().B10, getClientStorage().B11);
 
 
 		// however, other blocks could have large(r) values
-		ClientConfig.GRPC_SERVER_FOOTPRINT = ClientHelper
-				.getFootprint(ClientStorage.A00, ClientStorage.A01, ClientStorage.blockSize);
-		ClientConfig.GRPC_SERVERS_NEEDED = (int) (ClientConfig.GRPC_SERVER_FOOTPRINT/ClientConfig.GRPC_SERVER_DEADLINE);
-
-
+		getClientConfig().INPUT_FOOTPRINT = getClientHelper()
+				.getFootprint(getClientStorage().A00, getClientStorage().A01, getClientStorage().blockSize);
+		getClientConfig().GRPC_SERVERS_NEEDED = (int) (getClientConfig().INPUT_FOOTPRINT/getClientConfig().GRPC_SERVER_DEADLINE);
+		if (getClientConfig().GRPC_SERVERS_NEEDED == 0) {
+			getClientConfig().GRPC_SERVERS_NEEDED = 1;
+		}
 
 		MatrixOutput matOut = new MatrixOutput(0, 0,
-				ClientStorage.A00, ClientStorage.A01, ClientStorage.A10, ClientStorage.A11, ClientStorage.A,
-				(int) (ClientConfig.GRPC_SERVER_FOOTPRINT/1000000000L));
+				getClientStorage().A00, getClientStorage().A01, getClientStorage().A10, getClientStorage().A11, getClientStorage().A,
+				(int) (getClientConfig().INPUT_FOOTPRINT/1000000000L));
 
 	/**
 		if (REST_Config.GRPC_FOOTPRINT_PORT != 0) {
@@ -62,13 +90,13 @@ public class Client {
 
 	@RequestMapping(value = "/deadline", method = RequestMethod.POST)
 	public Response setDeadline(@RequestParam(value = "set") int deadline) {
-		ClientConfig.GRPC_SERVER_DEADLINE = deadline * 1000000000L;
+
+		if (deadline <=0) {
+			return new Reply("Deadline must be strictly greater than 0 seconds!", ReplyType.ERROR);
+		}
+
+		getClientConfig().GRPC_SERVER_DEADLINE = TimeUnit.NANOSECONDS.toMillis(deadline);
 		return new Reply("New deadline set to " + deadline + " seconds", ReplyType.SUCCESS);
-	}
-	@RequestMapping(value = "/footprint_port", method = RequestMethod.POST)
-	public Response setGrpcFootprintServerPort(@RequestParam(value = "set") int footprint_port) {
-		ClientConfig.GRPC_FOOTPRINT_PORT = footprint_port;
-		return new Reply("Footprint load determined by GRPC Server at port:" + footprint_port, ReplyType.SUCCESS);
 	}
 
 	@RequestMapping(value = "/upload", method = RequestMethod.POST)
@@ -122,9 +150,9 @@ public class Client {
 			}
 		}
 
-		ClientStorage.inputSize = n;
-		ClientStorage.saveBlockSize(n);
-		if (ClientStorage.saveInput(input)) {
+		getClientStorage().inputSize = n;
+		getClientStorage().saveBlockSize(n);
+		if (getClientStorage().saveInput(input)) {
 			return new Reply("Matrix A loaded", ReplyType.SUCCESS);
 		} else {
 			return new Reply("Matrix B loaded", ReplyType.SUCCESS);

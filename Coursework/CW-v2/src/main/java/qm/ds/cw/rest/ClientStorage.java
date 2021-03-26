@@ -4,30 +4,32 @@ import java.util.ArrayList;
 
 class ClientStorage {
 
-	public static int inputSize;
-	public static int blockSize;
+	public ClientStorage() { }
 
-	public static int[][] A = null;
-	public static int[][] A00 = null;
-	public static int[][] A01 = null;
-	public static int[][] A10 = null;
-	public static int[][] A11 = null;
+	public int inputSize;
+	public int blockSize;
 
-	public static int[][] B = null;
-	public static int[][] B00 = null;
-	public static int[][] B01 = null;
-	public static int[][] B10 = null;
-	public static int[][] B11 = null;
+	public int[][] A = null;
+	public int[][] A00 = null;
+	public int[][] A01 = null;
+	public int[][] A10 = null;
+	public int[][] A11 = null;
 
-	public static int[][] C = null;
-	public static int[][] C00 = null;
-	public static int[][] C01 = null;
-	public static int[][] C10 = null;
-	public static int[][] C11 = null;
+	public int[][] B = null;
+	public int[][] B00 = null;
+	public int[][] B01 = null;
+	public int[][] B10 = null;
+	public int[][] B11 = null;
 
-	public static ArrayList<int[][]> inputBlocks = new ArrayList<>();
+	public int[][] C = null;
+	public int[][] C00 = null;
+	public int[][] C01 = null;
+	public int[][] C10 = null;
+	public int[][] C11 = null;
 
-	public static boolean saveInput(int[][] in) {
+	public ArrayList<int[][]> inputBlocks = new ArrayList<>();
+
+	public boolean saveInput(int[][] in) {
 		if (A == null) {
 			A = in;
 			return true;
@@ -39,7 +41,7 @@ class ClientStorage {
 
 	}
 
-	public static void wipeStorage() {
+	public void wipeStorage() {
 		A = null;
 		B = null;
 		C = null;
@@ -47,7 +49,7 @@ class ClientStorage {
 		blockSize = 0;
 	}
 
-	public static void saveBlockSize(int inputSize) {
-		ClientStorage.blockSize = (inputSize == 4) ? 2 : inputSize / 2;
+	public void saveBlockSize(int inputSize) {
+		blockSize = (inputSize == 4) ? 2 : inputSize / 2;
 	}
 }

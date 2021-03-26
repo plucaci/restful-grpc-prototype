@@ -1,20 +1,31 @@
 package qm.ds.cw.rest;
 
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.ManagedChannelProvider;
 
 import java.util.ArrayList;
-import java.util.Queue;
 
 class ClientConfig {
-    public static int GRPC_FOOTPRINT_PORT = 8080;
-    public static long GRPC_SERVERS_TOTAL = 12;
 
-    public static long GRPC_SERVER_DEADLINE = 0L;
-    public static long GRPC_SERVER_FOOTPRINT = 0L;
-    public static int GRPC_SERVERS_NEEDED = 0;
+    public static long GRPC_SERVERS_USABLE = 12;
+    public int GRPC_SERVERS_NEEDED = 0;
+    public static int GRPC_FOOTPRINT_PORT = 8080;
+
+    public long GRPC_SERVER_DEADLINE = 0L;
+    public long INPUT_FOOTPRINT = 0L;
 
     public static ArrayList<ManagedChannel> GRPC_Channels = new ArrayList<ManagedChannel>();
+
+    public ClientConfig (int grpc_servers_needed, long output_deadline, long input_footprint) {
+        this.GRPC_SERVERS_NEEDED = grpc_servers_needed;
+        this.GRPC_SERVER_DEADLINE = output_deadline;
+        this.INPUT_FOOTPRINT = input_footprint;
+    }
+
+    public ClientConfig() { }
+
+
+
+
+
 
 }

@@ -2,10 +2,9 @@ package qm.ds.cw.rest;
 
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
-import java.util.stream.Stream;
+import java.util.concurrent.TimeUnit;
 
 import io.grpc.stub.StreamObserver;
-import io.grpc.stub.StreamObservers;
 import qm.ds.cw.grpc.*;
 import qm.ds.cw.grpc.MatrixMultGrpc.MatrixMultBlockingStub;
 import qm.ds.cw.utils.Utils;
@@ -17,20 +16,25 @@ import qm.ds.cw.utils.Utils;
 
 class ClientHelper {
 
-	public ClientHelper () {}
+	private ClientConfig clientConfig;
+	private ClientStorage clientStorage;
+	public ClientHelper (ClientConfig clientConfig, ClientStorage clientStorage) {
+		this.clientConfig = clientConfig;
+		this.clientStorage = clientStorage;
+	}
 
 	private CountDownLatch splitLatch = new CountDownLatch(4);
 	private ArrayList<int[][]> outputBlocksArrays = new ArrayList<>();
 
 	public synchronized void onNextSplit(Output split) {
 		System.out.println("[INPUT SPLIT] Received from server tile " + split.getTile()
-				+ " for matrix with index " + split.getMatrixIndex());
+										+ " for matrix with index " + split.getMatrixIndex());
 
 		this.outputBlocksArrays.add(split.getTile(), Utils.toArray(split.getSize(), split.getOutput()));
-		System.out.println("[INPUT SPLIT] Number of current splits: " + this.outputBlocksArrays.size());
+		System.out.println("[INPUT SPLIT] Number of current splits received: " + this.outputBlocksArrays.size());
 
 		this.splitLatch.countDown();
-		System.out.println("Latches left: " + this.splitLatch.getCount());
+		System.out.println("[INPUT SPLIT] Number of splits left:  " + this.splitLatch.getCount());
 
 		if (this.outputBlocksArrays.size() == 4) {
 			System.out.println("We got 4 splits!");
@@ -44,15 +48,14 @@ class ClientHelper {
 		SplitInput.Builder splitInputBuilder = SplitInput.newBuilder()
 				.setInput(inMatrix)
 				.setMatrixIndex(matrixIndex)
-				.setInputSize(ClientStorage.inputSize)
-				.setBlockSize(ClientStorage.blockSize);
+				.setInputSize(clientStorage.inputSize)
+				.setBlockSize(clientStorage.blockSize);
 
 		StreamObserver<Output> outputObserver = new StreamObserver<Output>() {
 			@Override
 			public void onNext(Output value) {
 				onNextSplit(value);
 			}
-
 			@Override
 			public void onError(Throwable t) {
 
@@ -64,20 +67,28 @@ class ClientHelper {
 		};
 
 		// void calls in async, only in blocking stubs are defined the same proto functions that are non-void
-		StreamObserver<SplitInput> split0 = MatrixFormingGrpc.newStub(ClientConfig.GRPC_Channels.get(portIndex))
+		StreamObserver<SplitInput> split0 = MatrixFormingGrpc.newStub(clientConfig.GRPC_Channels.get(portIndex))
 				.inputSplitting( outputObserver ); split0.onNext(splitInputBuilder.setTile(0).build());
 
-		StreamObserver<SplitInput> split1 = MatrixFormingGrpc.newStub(ClientConfig.GRPC_Channels.get(++portIndex))
+		StreamObserver<SplitInput> split1 = MatrixFormingGrpc.newStub(clientConfig.GRPC_Channels.get(++portIndex))
 				.inputSplitting( outputObserver ); split1.onNext(splitInputBuilder.setTile(1).build());
 
-		StreamObserver<SplitInput> split2 = MatrixFormingGrpc.newStub(ClientConfig.GRPC_Channels.get(++portIndex))
+		StreamObserver<SplitInput> split2 = MatrixFormingGrpc.newStub(clientConfig.GRPC_Channels.get(++portIndex))
 				.inputSplitting( outputObserver ); split2.onNext(splitInputBuilder.setTile(2).build());
 
-		StreamObserver<SplitInput> split3 = MatrixFormingGrpc.newStub(ClientConfig.GRPC_Channels.get(++portIndex))
+		StreamObserver<SplitInput> split3 = MatrixFormingGrpc.newStub(clientConfig.GRPC_Channels.get(++portIndex))
 				.inputSplitting( outputObserver ); split3.onNext(splitInputBuilder.setTile(3).build());
 
+
 		try {
-			this.splitLatch.await();
+
+			long start = System.nanoTime();
+
+			while(splitLatch.getCount() > 0 && clientConfig.GRPC_SERVER_DEADLINE >
+												TimeUnit.NANOSECONDS.toSeconds(start - System.nanoTime())) {
+				System.out.println(splitLatch.getCount());
+				this.splitLatch.await(50, TimeUnit.MILLISECONDS);
+			}
 
 			in00 = outputBlocksArrays.get(0);
 			in01 = outputBlocksArrays.get(1);
@@ -87,13 +98,12 @@ class ClientHelper {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-
 	}
 
-	public static long getFootprint(int[][] a, int[][] b, int blockSize) {
+	public long getFootprint(int[][] a, int[][] b, int blockSize) {
 
 		InputBlocks multiplyInput = Utils.inputBuilder(blockSize, a, b);
-		MatrixMultBlockingStub footPrintingChannel = MatrixMultGrpc.newBlockingStub(ClientConfig.GRPC_Channels.get(0));
+		MatrixMultBlockingStub footPrintingChannel = MatrixMultGrpc.newBlockingStub(clientConfig.GRPC_Channels.get(0));
 
 		long startTime = System.nanoTime();
 		footPrintingChannel.multiplyBlock(multiplyInput);
