@@ -54,9 +54,9 @@ public class Client {
 		getClientHelper()
 				.splitInputs(getClientStorage().A, 1,1,
 						getClientStorage().A00, getClientStorage().A01, getClientStorage().A10, getClientStorage().A11);
-		getClientHelper()
-				.splitInputs(getClientStorage().B, 2,1,
-						getClientStorage().B00, getClientStorage().B01, getClientStorage().B10, getClientStorage().B11);
+		//getClientHelper()
+		//		.splitInputs(getClientStorage().B, 2,1,
+		//				getClientStorage().B00, getClientStorage().B01, getClientStorage().B10, getClientStorage().B11);
 
 
 		// however, other blocks could have large(r) values

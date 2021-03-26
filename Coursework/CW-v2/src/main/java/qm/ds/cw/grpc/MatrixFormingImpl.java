@@ -62,6 +62,9 @@ public class MatrixFormingImpl extends MatrixFormingImplBase {
     public StreamObserver<SplitInput> inputSplitting(StreamObserver<Output> responseObserver) {
 
         return new StreamObserver<SplitInput>() {
+
+            Output.Builder blockResponse = Output.newBuilder();
+
             @Override
             public void onNext(SplitInput value) {
                 System.out.println("[INPUT SPLIT] Request received from client:\n" + value);
@@ -73,14 +76,11 @@ public class MatrixFormingImpl extends MatrixFormingImplBase {
                 int tile = value.getTile();
                 int[][] outputBlockC = inputSplitting(input, inputSize, blockSize, tile);
 
-                Output blockResponse = Output.newBuilder()
-                        .setOutput(Utils.toMatrix(outputBlockC))
-                        .setSize(blockSize)
-                        .setTile(tile)
-                        .setMatrixIndex(value.getMatrixIndex())
-                        .build();
-
-                responseObserver.onNext(blockResponse);
+                blockResponse
+                            .setOutput(Utils.toMatrix(outputBlockC))
+                            .setSize(blockSize)
+                            .setTile(tile)
+                            .setMatrixIndex(value.getMatrixIndex());
             }
 
             @Override
@@ -89,7 +89,7 @@ public class MatrixFormingImpl extends MatrixFormingImplBase {
             }
             @Override
             public void onCompleted() {
-
+                responseObserver.onNext(blockResponse.build());
             }
         };
 

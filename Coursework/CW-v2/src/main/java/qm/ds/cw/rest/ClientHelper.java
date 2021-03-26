@@ -79,25 +79,27 @@ class ClientHelper {
 		StreamObserver<SplitInput> split3 = MatrixFormingGrpc.newStub(clientConfig.GRPC_Channels.get(++portIndex))
 				.inputSplitting( outputObserver ); split3.onNext(splitInputBuilder.setTile(3).build());
 
+		split0.onCompleted();
+		split1.onCompleted();
+		split2.onCompleted();
+		split3.onCompleted();
+
 
 		try {
 
-			long start = System.nanoTime();
-
-			while(splitLatch.getCount() > 0 && clientConfig.GRPC_SERVER_DEADLINE >
-												TimeUnit.NANOSECONDS.toSeconds(start - System.nanoTime())) {
-				System.out.println(splitLatch.getCount());
-				this.splitLatch.await(50, TimeUnit.MILLISECONDS);
+			if (splitLatch.await(3, TimeUnit.SECONDS)) {
+				in00 = outputBlocksArrays.get(0);
+				System.out.println(in00[0][0]);
+				in01 = outputBlocksArrays.get(1);
+				in10 = outputBlocksArrays.get(2);
+				in11 = outputBlocksArrays.get(3);
 			}
-
-			in00 = outputBlocksArrays.get(0);
-			in01 = outputBlocksArrays.get(1);
-			in10 = outputBlocksArrays.get(2);
-			in11 = outputBlocksArrays.get(3);
 
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+
+
 	}
 
 	public long getFootprint(int[][] a, int[][] b, int blockSize) {
