@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 import io.grpc.stub.StreamObserver;
 import qm.ds.cw.grpc.*;
 import qm.ds.cw.grpc.MatrixMultGrpc.MatrixMultBlockingStub;
+import qm.ds.cw.rest.models.MatrixOutput;
 import qm.ds.cw.utils.Utils;
 
 //C00 = Utils.outputToInteger(this.channelStream, blockSize, A00, B00, A01, B10);
@@ -54,46 +55,40 @@ class ClientHelper {
 		}
 	}
 
-	private CountDownLatch splitLatch = new CountDownLatch(4);
-	private ArrayList<int[][]> outputBlocksArrays = new ArrayList<>();
-
-	public synchronized void onNextSplit(Output split) {
-		System.out.println("[INPUT SPLIT] Received from server tile " + split.getTile()
-				+ " for matrix with index " + split.getMatrixIndex());
-
-		this.outputBlocksArrays.add(split.getTile(), Utils.toArray(split.getSize(), split.getOutput()));
-		System.out.println("[INPUT SPLIT] Number of current splits received: " + this.outputBlocksArrays.size());
-
-		this.splitLatch.countDown();
-		System.out.println("[INPUT SPLIT] Number of splits left:  " + this.splitLatch.getCount());
-
-		if (this.outputBlocksArrays.size() == 4) {
-			System.out.println("We got 4 splits!");
-		}
-	}
-	public void splitInputs(int[][] input, int matrixIndex, int portIndex, int[][] in00, int[][] in01, int[][] in10, int[][] in11) {
+	public MatrixOutput splitInputs(int[][] input, int matrixIndex, int portIndex, long timeout) {
 
 		Matrix inMatrix = Utils.toMatrix(input);
-
 		SplitInput.Builder splitInputBuilder = SplitInput.newBuilder()
 				.setInput(inMatrix)
 				.setMatrixIndex(matrixIndex)
 				.setInputSize(clientStorage.inputSize)
 				.setBlockSize(clientStorage.blockSize);
 
+
+
+		ArrayList<int[][]> outputBlocksArray = new ArrayList<>();
+		outputBlocksArray.add(0, null); outputBlocksArray.add(1, null);
+		outputBlocksArray.add(2, null); outputBlocksArray.add(3, null);
+
+		CountDownLatch splitLatch = new CountDownLatch(4);
+
 		StreamObserver<Output> outputObserver = new StreamObserver<Output>() {
+
 			@Override
 			public void onNext(Output value) {
-				onNextSplit(value);
-			}
-			@Override
-			public void onError(Throwable t) {
 
-			}
-			@Override
-			public void onCompleted() {
+				System.out.println(
+						"[INPUT SPLIT] Received from server tile " + value.getTile() + " for matrix with index " + value.getMatrixIndex()
+				);
 
+				outputBlocksArray.set(value.getTile(), Utils.toArray(value.getSize(), value.getOutput()));
+				splitLatch.countDown();
 			}
+
+			@Override
+			public void onError(Throwable t) { }
+			@Override
+			public void onCompleted() { }
 		};
 
 		// void calls in async, only in blocking stubs are defined the same proto functions that are non-void
@@ -109,24 +104,27 @@ class ClientHelper {
 		StreamObserver<SplitInput> split3 = MatrixFormingGrpc.newStub(clientConfig.GRPC_Channels.get(++portIndex))
 				.inputSplitting( outputObserver ); split3.onNext(splitInputBuilder.setTile(3).build());
 
-		split0.onCompleted();
-		split1.onCompleted();
-		split2.onCompleted();
-		split3.onCompleted();
+		split0.onCompleted(); split1.onCompleted();
+		split2.onCompleted(); split3.onCompleted();
 
 		try {
 
-			splitLatch.await(10, TimeUnit.SECONDS);
-			in00 = outputBlocksArrays.get(0); System.out.println(in00[0][0]);
-			in01 = outputBlocksArrays.get(1);
-			in10 = outputBlocksArrays.get(2);
-			in11 = outputBlocksArrays.get(3);
+			if(splitLatch.await(timeout, TimeUnit.NANOSECONDS)) {
+
+				return new MatrixOutput(0, 0,
+						outputBlocksArray.get(0), outputBlocksArray.get(1), outputBlocksArray.get(2), outputBlocksArray.get(3),
+						null, 0, 0
+				);
+			}
 
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 
+		return null;
+
 	}
+
 
 	public long getFootprint(int[][] a, int[][] b, int blockSize) {
 
@@ -139,4 +137,5 @@ class ClientHelper {
 
 		return elapsedNanos;
 	}
+
 }

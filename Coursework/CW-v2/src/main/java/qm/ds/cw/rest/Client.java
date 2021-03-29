@@ -56,11 +56,22 @@ public class Client {
 		if (ClientConfig.GRPC_FOOTPRINT_PORT != 0) {
 			if (getClientConfig().GRPC_SERVER_DEADLINE != 0) {
 
-				getClientHelper().inputSplitting(getClientStorage().inputSize, getClientStorage().blockSize);
+				MatrixOutput splitsMatrixA = getClientHelper()
+						.splitInputs(getClientStorage().A, 0, 1, getClientConfig().GRPC_SERVER_DEADLINE);
+
+				getClientStorage().A00 = splitsMatrixA.getBlock00(); getClientStorage().A01 = splitsMatrixA.getBlock01();
+				getClientStorage().A10 = splitsMatrixA.getBlock10(); getClientStorage().A11 = splitsMatrixA.getBlock11();
+
+				MatrixOutput splitsMatrixB = getClientHelper()
+						.splitInputs(getClientStorage().B, 1, 1, getClientConfig().GRPC_SERVER_DEADLINE);
+
+				getClientStorage().B00 = splitsMatrixB.getBlock00(); getClientStorage().B01 = splitsMatrixB.getBlock01();
+				getClientStorage().B10 = splitsMatrixB.getBlock10(); getClientStorage().B11 = splitsMatrixB.getBlock11();
+
 
 				getClientConfig().INPUT_FOOTPRINT = getClientHelper().getFootprint(
 						// however, other blocks could have large(r) values
-						getClientStorage().A00, getClientStorage().B01, getClientStorage().blockSize);
+						getClientStorage().A00, getClientStorage().A01, getClientStorage().blockSize);
 
 				getClientConfig().GRPC_SERVERS_NEEDED = 1 + (int)((8*getClientConfig().INPUT_FOOTPRINT)/getClientConfig().GRPC_SERVER_DEADLINE);
 
