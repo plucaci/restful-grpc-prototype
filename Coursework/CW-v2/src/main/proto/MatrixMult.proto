@@ -48,3 +48,10 @@ service MatrixForming {
 	rpc input_splitting(stream SplitInput) returns (Output);
 	rpc output_merging(MergeInput) returns (Output);
 }
+
+message Health {
+	string health = 1;
+}
+service HealthStatus {
+	rpc check_health(Health) returns (Health);
+}

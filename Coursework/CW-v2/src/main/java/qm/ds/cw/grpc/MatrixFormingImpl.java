@@ -92,7 +92,6 @@ public class MatrixFormingImpl extends MatrixFormingImplBase {
                 responseObserver.onNext(blockResponse.build());
             }
         };
-
     }
 
 

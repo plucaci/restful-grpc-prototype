@@ -12,12 +12,14 @@ public class MatrixOutput implements Response{
 	private int[][] C;
 
 	private int footprint;
+	private int no_servers_used;
 
 	public MatrixOutput(int blockSize, int inputSize,
 						int[][] C00, int[][] C01, int[][] C10, int[][] C11, int[][] C,
-						int footprint) {
+						int footprint, int no_servers_used) {
 
 		this.footprint = footprint;
+		this.no_servers_used = no_servers_used;
 
 		this.C00 = C00;
 		this.C01 = C01;
@@ -49,8 +51,14 @@ public class MatrixOutput implements Response{
 	public int[][] getC11() {
 		return this.C11;
 	}
-	public int getblockSize() {
+	public int getBlockSize() {
 		return this.blockSize;
 	}
 
+	public int getFootprint() {
+		return footprint;
+	}
+	public int getNo_servers_used() {
+		return no_servers_used;
+	}
 }

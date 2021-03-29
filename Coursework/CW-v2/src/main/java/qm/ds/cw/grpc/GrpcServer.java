@@ -10,8 +10,8 @@ import io.grpc.ServerBuilder;
 public class GrpcServer {
 
 	private static int FOOT_PRINT_SERVER_PORT = 8080;
-	private static int FIRST_USABLE_PORT = 8081;
-	private static int NUM_USABLE_SERVERS = 12;
+	private static int FIRST_USABLE_PORT      = 8081;
+	private static int NUM_USABLE_SERVERS     = 13;
 
 	public static HashMap<Integer, Server> usableServers = new HashMap<>();
 	
@@ -37,11 +37,10 @@ public class GrpcServer {
     		Server server = ServerBuilder.forPort(atPort)
 					.addService(new MatrixMultImpl())
 					.addService(new MatrixFormingImpl())
+					.addService(new HealthStatusImpl())
 					.build();
 
     		server.start(); usableServers.put(atPort, server);
-
-    		//TODO FIX: server.awaitTermination() causing blocking effect and not coming back from recursion;
     		System.out.println("Server at :" + atPort + " started successfully!\n");
 	}
 }

@@ -23,12 +23,43 @@ class ClientHelper {
 		this.clientStorage = clientStorage;
 	}
 
+	public void inputSplitting(int inputSize, int blockSize) {
+
+		for (int i = 0; i < blockSize; i++) {
+			for (int j = 0; j < blockSize; j++) {
+				clientStorage.A00[i][j] = clientStorage.A[i][j];
+				clientStorage.B00[i][j] = clientStorage.B[i][j];
+			}
+		}
+
+		for (int i = 0; i < blockSize; i++) {
+			for (int j = blockSize; j < inputSize; j++) {
+				clientStorage.A01[i][j - blockSize] = clientStorage.A[i][j];
+				clientStorage.B01[i][j - blockSize] = clientStorage.B[i][j];
+			}
+		}
+
+		for (int i = blockSize; i < inputSize; i++) {
+			for (int j = 0; j < blockSize; j++) {
+				clientStorage.A10[i - blockSize][j] = clientStorage.A[i][j];
+				clientStorage.B10[i - blockSize][j] = clientStorage.B[i][j];
+			}
+		}
+
+		for (int i = blockSize; i < inputSize; i++) {
+			for (int j = blockSize; j < inputSize; j++) {
+				clientStorage.A11[i - blockSize][j - blockSize] = clientStorage.A[i][j];
+				clientStorage.B11[i - blockSize][j - blockSize] = clientStorage.B[i][j];
+			}
+		}
+	}
+
 	private CountDownLatch splitLatch = new CountDownLatch(4);
 	private ArrayList<int[][]> outputBlocksArrays = new ArrayList<>();
 
 	public synchronized void onNextSplit(Output split) {
 		System.out.println("[INPUT SPLIT] Received from server tile " + split.getTile()
-										+ " for matrix with index " + split.getMatrixIndex());
+				+ " for matrix with index " + split.getMatrixIndex());
 
 		this.outputBlocksArrays.add(split.getTile(), Utils.toArray(split.getSize(), split.getOutput()));
 		System.out.println("[INPUT SPLIT] Number of current splits received: " + this.outputBlocksArrays.size());
@@ -40,7 +71,6 @@ class ClientHelper {
 			System.out.println("We got 4 splits!");
 		}
 	}
-
 	public void splitInputs(int[][] input, int matrixIndex, int portIndex, int[][] in00, int[][] in01, int[][] in10, int[][] in11) {
 
 		Matrix inMatrix = Utils.toMatrix(input);
@@ -84,31 +114,27 @@ class ClientHelper {
 		split2.onCompleted();
 		split3.onCompleted();
 
-
 		try {
 
-			if (splitLatch.await(3, TimeUnit.SECONDS)) {
-				in00 = outputBlocksArrays.get(0);
-				System.out.println(in00[0][0]);
-				in01 = outputBlocksArrays.get(1);
-				in10 = outputBlocksArrays.get(2);
-				in11 = outputBlocksArrays.get(3);
-			}
+			splitLatch.await(10, TimeUnit.SECONDS);
+			in00 = outputBlocksArrays.get(0); System.out.println(in00[0][0]);
+			in01 = outputBlocksArrays.get(1);
+			in10 = outputBlocksArrays.get(2);
+			in11 = outputBlocksArrays.get(3);
 
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-
 
 	}
 
 	public long getFootprint(int[][] a, int[][] b, int blockSize) {
 
 		InputBlocks multiplyInput = Utils.inputBuilder(blockSize, a, b);
-		MatrixMultBlockingStub footPrintingChannel = MatrixMultGrpc.newBlockingStub(clientConfig.GRPC_Channels.get(0));
+		MatrixMultBlockingStub footPrintStream = MatrixMultGrpc.newBlockingStub(clientConfig.GRPC_Channels.get(0));
 
 		long startTime = System.nanoTime();
-		footPrintingChannel.multiplyBlock(multiplyInput);
+		footPrintStream.multiplyBlock(multiplyInput);
 		long elapsedNanos = System.nanoTime() - startTime;
 
 		return elapsedNanos;

@@ -32,6 +32,7 @@ class ClientStorage {
 	public boolean saveInput(int[][] in) {
 		if (A == null) {
 			A = in;
+
 			return true;
 		} else if (B == null) {
 			B = in;
@@ -45,11 +46,24 @@ class ClientStorage {
 		A = null;
 		B = null;
 		C = null;
+
 		inputSize = 0;
 		blockSize = 0;
 	}
 
 	public void saveBlockSize(int inputSize) {
+
 		blockSize = (inputSize == 4) ? 2 : inputSize / 2;
+
+		A00 = new int[blockSize][blockSize];
+		A01 = new int[blockSize][blockSize];
+		A10 = new int[blockSize][blockSize];
+		A11 = new int[blockSize][blockSize];
+
+		B00 = new int[blockSize][blockSize];
+		B01 = new int[blockSize][blockSize];
+		B10 = new int[blockSize][blockSize];
+		B11 = new int[blockSize][blockSize];
+
 	}
 }
