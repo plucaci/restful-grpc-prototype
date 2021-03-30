@@ -4,6 +4,8 @@ import io.grpc.stub.StreamObserver;
 import qm.ds.cw.grpc.MatrixMultGrpc.MatrixMultImplBase;
 import qm.ds.cw.utils.Utils;
 
+import java.util.stream.Stream;
+
 public class MatrixMultImpl extends MatrixMultImplBase {
     
 	public interface BlockOperation {
@@ -61,7 +63,7 @@ public class MatrixMultImpl extends MatrixMultImplBase {
     }
 	
 	@Override
-    public void multiplyBlock(
+    public void syncMultiplyBlock(
       InputBlocks request, StreamObserver<Output> responseObserver) {
         System.out.println("[MULTIPLY] Request received from client:\n" + request);
         
@@ -70,6 +72,21 @@ public class MatrixMultImpl extends MatrixMultImplBase {
         responseObserver.onNext(blockResponse);
         responseObserver.onCompleted();
     }
+
+
+	@Override
+	public StreamObserver<InputBlocks> asyncMultiplyBlock(StreamObserver<Output> responseObserver) {
+		/**
+		 * 		System.out.println("[MULTIPLY] Request received from client:\n" + request);
+		 *
+		 * 		Output blockResponse = processRequest(request, multiplyBlock);
+		 *
+		 * 		responseObserver.onNext(blockResponse);
+		 * 		responseObserver.onCompleted();
+		 */
+		return null;
+	}
+
 	@Override
     public void addBlock(
       InputBlocks request, StreamObserver<Output> responseObserver) {

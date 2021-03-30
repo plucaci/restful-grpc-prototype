@@ -46,7 +46,9 @@ public class ClientLauncher {
 			if (ClientConfig.GRPC_SERVERS_USABLE / 2 > ClientConfig.GRPC_Channels.size()) {
 				System.out.println("[WARNING] Fewer than half gRPC Servers available. Performance could be impacted.");
 			}
+
 			SpringApplication.run(ClientLauncher.class, args);
+
 		} else {
 			System.out.println("Abort. Could not launch Client. No gRPC Servers available.");
 		}

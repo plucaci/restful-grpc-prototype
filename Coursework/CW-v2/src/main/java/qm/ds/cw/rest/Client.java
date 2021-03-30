@@ -2,6 +2,7 @@ package qm.ds.cw.rest;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
@@ -117,12 +118,29 @@ public class Client {
 				.usePlaintext()
 				.build();
 
+		GRPC_Channels_LinkedList ptr = new GRPC_Channels_LinkedList(ClientConfig.GRPC_Channels.get(1));
+		GRPC_Channels_LinkedList head = ptr;
+
+		for (int portIndex = 2; portIndex <= 8; portIndex++) {
+			ptr.next = new GRPC_Channels_LinkedList();
+			ptr = ptr.next;
+
+			ptr.channel = ClientConfig.GRPC_Channels.get(portIndex);
+		}
+		ptr.next = head;
+
+		while (head != null) {
+			System.out.println(head.channel);
+			head = head.next;
+		}
+
 		if (ClientLauncher.doesChannelExist(managedChannel)) {
 			return new Reply("Already connected to this gRPC Server", ReplyType.ERROR);
 		}
 
 		if (ClientLauncher.isGrpcServerAlive(managedChannel)) {
 			ClientConfig.GRPC_Channels.set(0, managedChannel);
+
 			return new Reply("Successfully connected to gRPC Server at port :"+ footprint_port, ReplyType.SUCCESS);
 		} else {
 			return new Reply("Could not connect to gRPC Server at port :"+ footprint_port, ReplyType.ERROR);

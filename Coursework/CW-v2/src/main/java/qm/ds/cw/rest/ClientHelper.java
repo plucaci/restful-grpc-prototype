@@ -1,9 +1,11 @@
 package qm.ds.cw.rest;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
 import qm.ds.cw.grpc.*;
 import qm.ds.cw.grpc.MatrixMultGrpc.MatrixMultBlockingStub;
@@ -19,6 +21,7 @@ class ClientHelper {
 
 	private ClientConfig clientConfig;
 	private ClientStorage clientStorage;
+
 	public ClientHelper (ClientConfig clientConfig, ClientStorage clientStorage) {
 		this.clientConfig = clientConfig;
 		this.clientStorage = clientStorage;
@@ -64,15 +67,12 @@ class ClientHelper {
 				.setInputSize(clientStorage.inputSize)
 				.setBlockSize(clientStorage.blockSize);
 
+		ArrayList<int[][]> splits = new ArrayList<>();
+		splits.add(0, null); splits.add(1, null);
+		splits.add(2, null); splits.add(3, null);
 
-
-		ArrayList<int[][]> outputBlocksArray = new ArrayList<>();
-		outputBlocksArray.add(0, null); outputBlocksArray.add(1, null);
-		outputBlocksArray.add(2, null); outputBlocksArray.add(3, null);
-
-		CountDownLatch splitLatch = new CountDownLatch(4);
-
-		StreamObserver<Output> outputObserver = new StreamObserver<Output>() {
+		CountDownLatch splitLatches = new CountDownLatch(4);
+		StreamObserver<Output> outputSplitsObserver = new StreamObserver<Output>() {
 
 			@Override
 			public void onNext(Output value) {
@@ -81,38 +81,35 @@ class ClientHelper {
 						"[INPUT SPLIT] Received from server tile " + value.getTile() + " for matrix with index " + value.getMatrixIndex()
 				);
 
-				outputBlocksArray.set(value.getTile(), Utils.toArray(value.getSize(), value.getOutput()));
-				splitLatch.countDown();
+				splits.set(value.getTile(), Utils.toArray(value.getSize(), value.getOutput()));
+				splitLatches.countDown();
 			}
 
 			@Override
-			public void onError(Throwable t) { }
+			public void onError(Throwable t) {
+			}
 			@Override
-			public void onCompleted() { }
+			public void onCompleted() {
+			}
 		};
 
-		// void calls in async, only in blocking stubs are defined the same proto functions that are non-void
-		StreamObserver<SplitInput> split0 = MatrixFormingGrpc.newStub(clientConfig.GRPC_Channels.get(portIndex))
-				.inputSplitting( outputObserver ); split0.onNext(splitInputBuilder.setTile(0).build());
+		for (int tile = 0; tile < 4; tile++) {
 
-		StreamObserver<SplitInput> split1 = MatrixFormingGrpc.newStub(clientConfig.GRPC_Channels.get(++portIndex))
-				.inputSplitting( outputObserver ); split1.onNext(splitInputBuilder.setTile(1).build());
+			StreamObserver<SplitInput> split;
+			System.out.println(portIndex);
+			split = MatrixFormingGrpc.newStub(clientConfig.GRPC_Channels.get(portIndex)).inputSplitting(outputSplitsObserver);
+			portIndex++;
 
-		StreamObserver<SplitInput> split2 = MatrixFormingGrpc.newStub(clientConfig.GRPC_Channels.get(++portIndex))
-				.inputSplitting( outputObserver ); split2.onNext(splitInputBuilder.setTile(2).build());
-
-		StreamObserver<SplitInput> split3 = MatrixFormingGrpc.newStub(clientConfig.GRPC_Channels.get(++portIndex))
-				.inputSplitting( outputObserver ); split3.onNext(splitInputBuilder.setTile(3).build());
-
-		split0.onCompleted(); split1.onCompleted();
-		split2.onCompleted(); split3.onCompleted();
+			split.onNext(splitInputBuilder.setTile(tile).build());
+			split.onCompleted();
+		}
 
 		try {
 
-			if(splitLatch.await(timeout, TimeUnit.NANOSECONDS)) {
+			if(splitLatches.await(timeout, TimeUnit.NANOSECONDS)) {
 
 				return new MatrixOutput(0, 0,
-						outputBlocksArray.get(0), outputBlocksArray.get(1), outputBlocksArray.get(2), outputBlocksArray.get(3),
+						splits.get(0), splits.get(1), splits.get(2), splits.get(3),
 						null, 0, 0
 				);
 			}
@@ -128,14 +125,130 @@ class ClientHelper {
 
 	public long getFootprint(int[][] a, int[][] b, int blockSize) {
 
-		InputBlocks multiplyInput = Utils.inputBuilder(blockSize, a, b);
+		InputBlocks multiplyInput = Utils.arrayInputBuilder(blockSize, -1, a, b);
 		MatrixMultBlockingStub footPrintStream = MatrixMultGrpc.newBlockingStub(clientConfig.GRPC_Channels.get(0));
 
 		long startTime = System.nanoTime();
-		footPrintStream.multiplyBlock(multiplyInput);
+		footPrintStream.syncMultiplyBlock(multiplyInput);
 		long elapsedNanos = System.nanoTime() - startTime;
 
 		return elapsedNanos;
 	}
 
+	public void asyncMultiply(ManagedChannel channel, StreamObserver<Output> outputObserver, int tile, int[][] a, int[][] b) {
+
+		InputBlocks inputBlocks = Utils.arrayInputBuilder(clientStorage.blockSize, tile ,a, b);
+
+		StreamObserver<InputBlocks> inputBlocksStream;
+		inputBlocksStream = MatrixMultGrpc.newStub(channel).asyncMultiplyBlock(outputObserver);
+
+		inputBlocksStream.onNext(inputBlocks);
+		inputBlocksStream.onCompleted();
+	}
+
+	public void getProduct() {
+
+		CountDownLatch splitLatches = new CountDownLatch(8);
+
+		HashMap<Integer, ArrayList<Output>> multOutputBlocks = new HashMap<>();
+		multOutputBlocks.put(0, new ArrayList<>()); multOutputBlocks.put(1, new ArrayList<>());
+		multOutputBlocks.put(2, new ArrayList<>()); multOutputBlocks.put(3, new ArrayList<>());
+
+		StreamObserver<Output> outputMultiplyObserver = new StreamObserver<Output>() {
+
+			@Override
+			public void onNext(Output value) {
+
+				System.out.println("[MULTIPLY] Received from server tile " + value.getTile());
+
+				ArrayList<Output> tile = multOutputBlocks.get(value.getTile()); tile.add(value);
+				multOutputBlocks.put(value.getTile(), tile);
+
+				splitLatches.countDown();
+			}
+
+			@Override
+			public void onError(Throwable t) {
+			}
+			@Override
+			public void onCompleted() {
+			}
+		};
+
+		int[][][][] blocks = new int[4][4][][];
+		blocks[0][0] = clientStorage.A00;  blocks[1][0] = clientStorage.A00;
+		blocks[0][1] = clientStorage.B00;  blocks[1][1] = clientStorage.B01;
+		blocks[0][2] = clientStorage.A01;  blocks[1][2] = clientStorage.A01;
+		blocks[0][3] = clientStorage.B10;  blocks[1][3] = clientStorage.B11;
+		
+		blocks[2][0] = clientStorage.A10;  blocks[3][0] = clientStorage.A10;
+		blocks[2][1] = clientStorage.B00;  blocks[3][1] = clientStorage.B01;
+		blocks[2][2] = clientStorage.A11;  blocks[3][2] = clientStorage.A11;
+		blocks[2][3] = clientStorage.B10;  blocks[3][3] = clientStorage.B11;
+
+		GRPC_Channels_LinkedList channels_inUse = GRPC_Channels_LinkedList.getChannels(clientConfig.GRPC_SERVERS_NEEDED);
+
+		for (int tile = 0; tile < 4; tile++) {
+			for (int multBlocks = 0; multBlocks < 4; multBlocks+= 2) {
+				this.asyncMultiply(channels_inUse.channel, outputMultiplyObserver, tile, blocks[tile][multBlocks], blocks[tile][multBlocks+1]);
+
+				channels_inUse =  channels_inUse.next;
+			}
+		}
+
+		try {
+
+			if(!splitLatches.await(8* clientConfig.INPUT_FOOTPRINT, TimeUnit.NANOSECONDS)) {
+				System.out.println("[WARNING] Did not meet multiply deadline!");
+			}
+
+			// [ADD]
+
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+
+	}
+}
+
+class GRPC_Channels_LinkedList {
+
+	public ManagedChannel channel;
+	public GRPC_Channels_LinkedList next;
+
+	public GRPC_Channels_LinkedList (ManagedChannel channel) {
+		this.next = null;
+		this.channel =  channel;
+	}
+
+	public GRPC_Channels_LinkedList () {
+		this.next = null;
+		this.channel =  null;
+	}
+
+	public static GRPC_Channels_LinkedList getChannels(int numServers) {
+
+		if (numServers < ClientConfig.GRPC_SERVERS_USABLE) {
+			System.out.println(
+					"[Warning] Only " + ClientConfig.GRPC_SERVERS_USABLE
+							+ " servers available, but required are " + numServers
+							+ ". Using maximum available."
+			);
+
+			numServers = ClientConfig.GRPC_SERVERS_USABLE;
+		}
+
+		GRPC_Channels_LinkedList ptr = new GRPC_Channels_LinkedList(ClientConfig.GRPC_Channels.get(1));
+		GRPC_Channels_LinkedList head = ptr;
+
+		for (int portIndex = 2; portIndex <= 8; portIndex++) {
+			ptr.next = new GRPC_Channels_LinkedList();
+			ptr = ptr.next;
+
+			ptr.channel = ClientConfig.GRPC_Channels.get(portIndex);
+		}
+		ptr.next = head;
+
+		return head;
+	}
 }

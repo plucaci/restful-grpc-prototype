@@ -39,58 +39,61 @@ public class Utils {
 		return C;
     }
     
-    public static InputBlocks inputBuilder(int blockSize, int[][]... C) {
+    public static InputBlocks arrayInputBuilder(int blockSize, int tile, int[][]... C) {
 
 		InputBlocks in = InputBlocks.newBuilder()
     			.setBlockA(toMatrix(C[0]))
     			.setBlockB(toMatrix(C[1]))
+				.setTile(tile)
     			.setBlockSize(blockSize)
     			.build();
     	
 		return in;
     }
     
-    public static InputBlocks inputBuilder(int blockSize, Output... out) {
+    public static InputBlocks objectInputBuilder(int blockSize, int tile, Output... out) {
 
 		InputBlocks in = InputBlocks.newBuilder()
     			.setBlockA(out[0].getOutput())
     			.setBlockB(out[1].getOutput())
+				.setTile(tile)
     			.setBlockSize(blockSize)
     			.build();
     	
 		return in;
     }
-    
-    public static int[][] outputToInteger(MatrixMultBlockingStub stub, int bSize, int[][]... C) {
-
-		InputBlocks multiplyInput1 = inputBuilder(bSize, C[0], C[1]);
-		InputBlocks multiplyInput2 = inputBuilder(bSize, C[2], C[3]);
-    	
-    	Output multiplyOutput1 = stub.multiplyBlock(multiplyInput1);
-    	Output multiplyOutput2 = stub.multiplyBlock(multiplyInput2);
-
-		InputBlocks addInput = inputBuilder(bSize, multiplyOutput1, multiplyOutput2);
-    	Output addOutput = stub.addBlock(addInput);
-    	
-    	return toArray(bSize, addOutput.getOutput());
-    }
 
 
-    
-    public static String outputToString(int[][] C, String newln) {
-    	
-    	String Ctring = "";
-    	
-    	for (int i=0; i<C.length; i++) {
-    		for (int j=0; j<C.length; j++) {
-    			
-    			Ctring += Integer.toString(C[i][j]) + " ";
-    		}
-    		
-			Ctring += newln;
-    	}
-    	
-		return Ctring;
-    	
-    }
+	/**
+	 * public static int[][] outputToInteger(MatrixMultBlockingStub stub, int bSize, int[][]... C) {
+	 *
+	 * 		InputBlocks multiplyInput1 = objectInputBuilder(bSize, C[0], C[1]);
+	 * 		InputBlocks multiplyInput2 = objectInputBuilder(bSize, C[2], C[3]);
+	 *
+	 * 		Output multiplyOutput1 = stub.syncMultiplyBlock(multiplyInput1);
+	 * 		Output multiplyOutput2 = stub.syncMultiplyBlock(multiplyInput2);
+	 *
+	 * 		InputBlocks addInput = objectInputBuilder(bSize, multiplyOutput1, multiplyOutput2);
+	 * 		Output addOutput = stub.addBlock(addInput);
+	 *
+	 * 		return toArray(bSize, addOutput.getOutput());
+	 *        }
+	 *
+	 * 	public static String outputToString(int[][] C, String newln) {
+	 *
+	 *     	String Ctring = "";
+	 *
+	 *     	for (int i=0; i<C.length; i++) {
+	 *     		for (int j=0; j<C.length; j++) {
+	 *
+	 *     			Ctring += Integer.toString(C[i][j]) + " ";
+	 *            }
+	 *
+	 * 			Ctring += newln;
+	 *        }
+	 *
+	 * 		return Ctring;
+	 *
+	 *     }
+	 */
 }
