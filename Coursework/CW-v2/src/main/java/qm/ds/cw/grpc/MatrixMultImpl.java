@@ -12,7 +12,7 @@ public class MatrixMultImpl extends MatrixMultImplBase {
     	int[][] execute(int[][] blockA, int[][] blockB, int blockSize);
     }
 	
-	public BlockOperation multiplyBlock = (blockA, blockB, blockSize) -> {
+	public BlockOperation multiplyBlocks = (blockA, blockB, blockSize) -> {
     	int C[][]= new int[blockSize][blockSize];
 		
     	for (int i=0;i<C.length;i++) {
@@ -31,7 +31,7 @@ public class MatrixMultImpl extends MatrixMultImplBase {
     	}
     	return C;
     };
-    public BlockOperation addBlock = (blockA, blockB, blockSize) -> {
+    public BlockOperation addBlocks = (blockA, blockB, blockSize) -> {
     	int C[][]= new int[blockSize][blockSize];
     	
     	for (int i=0;i<C.length;i++) {
@@ -42,7 +42,6 @@ public class MatrixMultImpl extends MatrixMultImplBase {
     	
     	return C;
     };
-	
     
     
 	public Output processRequest(InputBlocks request, BlockOperation blockOperation) {
@@ -63,11 +62,11 @@ public class MatrixMultImpl extends MatrixMultImplBase {
     }
 	
 	@Override
-    public void syncMultiplyBlock(
+    public void syncMultiplyBlocks(
       InputBlocks request, StreamObserver<Output> responseObserver) {
         System.out.println("[MULTIPLY] Request received from client:\n" + request);
         
-        Output blockResponse = processRequest(request, multiplyBlock);
+        Output blockResponse = processRequest(request, multiplyBlocks);
         
         responseObserver.onNext(blockResponse);
         responseObserver.onCompleted();
@@ -75,27 +74,43 @@ public class MatrixMultImpl extends MatrixMultImplBase {
 
 
 	@Override
-	public StreamObserver<InputBlocks> asyncMultiplyBlock(StreamObserver<Output> responseObserver) {
+	public StreamObserver<InputBlocks> asyncMultiplyBlocks(StreamObserver<Output> responseObserver) {
 		/**
-		 * 		System.out.println("[MULTIPLY] Request received from client:\n" + request);
+		 * System.out.println("[MULTIPLY] Request received from client:\n" + request);
 		 *
-		 * 		Output blockResponse = processRequest(request, multiplyBlock);
+		 * Output blockResponse = processRequest(request, multiplyBlock);
 		 *
-		 * 		responseObserver.onNext(blockResponse);
-		 * 		responseObserver.onCompleted();
+		 * responseObserver.onNext(blockResponse);
+		 * responseObserver.onCompleted();
 		 */
+
 		return null;
 	}
 
 	@Override
-    public void addBlock(
+    public void syncAddBlocks(
       InputBlocks request, StreamObserver<Output> responseObserver) {
         System.out.println("[ADD] Request received from client:\n" + request);
         
-        Output blockResponse = processRequest(request, addBlock);
+        Output blockResponse = processRequest(request, addBlocks);
         
         responseObserver.onNext(blockResponse);
         responseObserver.onCompleted();
     }
+
+    @Override
+    public StreamObserver<InputBlocks> asyncAddBlocks(StreamObserver<Output> responseObserver) {
+
+		/**
+		 * System.out.println("[ADD] Request received from client:\n" + request);
+		 *
+		 * Output blockResponse = processRequest(request, addBlocks);
+		 *
+		 * responseObserver.onNext(blockResponse);
+		 * responseObserver.onCompleted();
+		 */
+
+		return null;
+	}
 	
 }

@@ -49,7 +49,8 @@ public class Client {
 	}
 
 	@Autowired()
-	public Client() { }
+	public Client() {
+	}
 
 	@RequestMapping(value = "/resolve", method = RequestMethod.GET)
 	public Response compute() {
@@ -113,26 +114,7 @@ public class Client {
 			return new Reply("New foot printing port must be 8080 or higher", ReplyType.ERROR);
 		}
 
-		ManagedChannel managedChannel = ManagedChannelBuilder
-				.forAddress("localhost", footprint_port)
-				.usePlaintext()
-				.build();
-
-		GRPC_Channels_LinkedList ptr = new GRPC_Channels_LinkedList(ClientConfig.GRPC_Channels.get(1));
-		GRPC_Channels_LinkedList head = ptr;
-
-		for (int portIndex = 2; portIndex <= 8; portIndex++) {
-			ptr.next = new GRPC_Channels_LinkedList();
-			ptr = ptr.next;
-
-			ptr.channel = ClientConfig.GRPC_Channels.get(portIndex);
-		}
-		ptr.next = head;
-
-		while (head != null) {
-			System.out.println(head.channel);
-			head = head.next;
-		}
+		ManagedChannel managedChannel = ManagedChannelBuilder.forAddress("localhost", footprint_port).usePlaintext().build();
 
 		if (ClientLauncher.doesChannelExist(managedChannel)) {
 			return new Reply("Already connected to this gRPC Server", ReplyType.ERROR);

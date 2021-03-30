@@ -12,11 +12,6 @@ import qm.ds.cw.grpc.MatrixMultGrpc.MatrixMultBlockingStub;
 import qm.ds.cw.rest.models.MatrixOutput;
 import qm.ds.cw.utils.Utils;
 
-//C00 = Utils.outputToInteger(this.channelStream, blockSize, A00, B00, A01, B10);
-//C01 = Utils.outputToInteger(this.channelStream, blockSize, A00, B01, A01, B11);
-//C10 = Utils.outputToInteger(this.channelStream, blockSize, A10, B00, A11, B10);
-//C11 = Utils.outputToInteger(this.channelStream, blockSize, A10, B01, A11, B11);
-
 class ClientHelper {
 
 	private ClientConfig clientConfig;
@@ -76,15 +71,12 @@ class ClientHelper {
 
 			@Override
 			public void onNext(Output value) {
-
 				System.out.println(
 						"[INPUT SPLIT] Received from server tile " + value.getTile() + " for matrix with index " + value.getMatrixIndex()
 				);
-
 				splits.set(value.getTile(), Utils.toArray(value.getSize(), value.getOutput()));
 				splitLatches.countDown();
 			}
-
 			@Override
 			public void onError(Throwable t) {
 			}
@@ -122,51 +114,46 @@ class ClientHelper {
 
 	}
 
-
-	public long getFootprint(int[][] a, int[][] b, int blockSize) {
-
-		InputBlocks multiplyInput = Utils.arrayInputBuilder(blockSize, -1, a, b);
-		MatrixMultBlockingStub footPrintStream = MatrixMultGrpc.newBlockingStub(clientConfig.GRPC_Channels.get(0));
-
-		long startTime = System.nanoTime();
-		footPrintStream.syncMultiplyBlock(multiplyInput);
-		long elapsedNanos = System.nanoTime() - startTime;
-
-		return elapsedNanos;
-	}
-
 	public void asyncMultiply(ManagedChannel channel, StreamObserver<Output> outputObserver, int tile, int[][] a, int[][] b) {
 
-		InputBlocks inputBlocks = Utils.arrayInputBuilder(clientStorage.blockSize, tile ,a, b);
+		InputBlocks inputBlocks = Utils.arrayInputBuilder(clientStorage.blockSize, tile, a, b);
 
 		StreamObserver<InputBlocks> inputBlocksStream;
-		inputBlocksStream = MatrixMultGrpc.newStub(channel).asyncMultiplyBlock(outputObserver);
+		inputBlocksStream = MatrixMultGrpc.newStub(channel).asyncMultiplyBlocks(outputObserver);
+
+		inputBlocksStream.onNext(inputBlocks);
+		inputBlocksStream.onCompleted();
+	}
+	public void asyncAdd(ManagedChannel channel, StreamObserver<Output> outputObserver, int tile, Output multOutputA, Output multOutputB) {
+
+		InputBlocks inputBlocks = Utils.objectInputBuilder(clientStorage.blockSize, tile, multOutputA, multOutputA);
+
+		StreamObserver<InputBlocks> inputBlocksStream;
+		inputBlocksStream = MatrixMultGrpc.newStub(channel).asyncAddBlocks(outputObserver);
 
 		inputBlocksStream.onNext(inputBlocks);
 		inputBlocksStream.onCompleted();
 	}
 
-	public void getProduct() {
 
-		CountDownLatch splitLatches = new CountDownLatch(8);
+	public MatrixOutput getDotProduct() {
+
+		CountDownLatch multiplyLatches = new CountDownLatch(8);
 
 		HashMap<Integer, ArrayList<Output>> multOutputBlocks = new HashMap<>();
 		multOutputBlocks.put(0, new ArrayList<>()); multOutputBlocks.put(1, new ArrayList<>());
 		multOutputBlocks.put(2, new ArrayList<>()); multOutputBlocks.put(3, new ArrayList<>());
 
 		StreamObserver<Output> outputMultiplyObserver = new StreamObserver<Output>() {
-
 			@Override
 			public void onNext(Output value) {
-
 				System.out.println("[MULTIPLY] Received from server tile " + value.getTile());
 
 				ArrayList<Output> tile = multOutputBlocks.get(value.getTile()); tile.add(value);
 				multOutputBlocks.put(value.getTile(), tile);
 
-				splitLatches.countDown();
+				multiplyLatches.countDown();
 			}
-
 			@Override
 			public void onError(Throwable t) {
 			}
@@ -175,42 +162,100 @@ class ClientHelper {
 			}
 		};
 
-		int[][][][] blocks = new int[4][4][][];
-		blocks[0][0] = clientStorage.A00;  blocks[1][0] = clientStorage.A00;
-		blocks[0][1] = clientStorage.B00;  blocks[1][1] = clientStorage.B01;
-		blocks[0][2] = clientStorage.A01;  blocks[1][2] = clientStorage.A01;
-		blocks[0][3] = clientStorage.B10;  blocks[1][3] = clientStorage.B11;
+		int[][][][] multInputBlocks = new int[4][4][][];
+		multInputBlocks[0][0] = clientStorage.A00;  multInputBlocks[1][0] = clientStorage.A00;
+		multInputBlocks[0][1] = clientStorage.B00;  multInputBlocks[1][1] = clientStorage.B01;
+		multInputBlocks[0][2] = clientStorage.A01;  multInputBlocks[1][2] = clientStorage.A01;
+		multInputBlocks[0][3] = clientStorage.B10;  multInputBlocks[1][3] = clientStorage.B11;
 		
-		blocks[2][0] = clientStorage.A10;  blocks[3][0] = clientStorage.A10;
-		blocks[2][1] = clientStorage.B00;  blocks[3][1] = clientStorage.B01;
-		blocks[2][2] = clientStorage.A11;  blocks[3][2] = clientStorage.A11;
-		blocks[2][3] = clientStorage.B10;  blocks[3][3] = clientStorage.B11;
+		multInputBlocks[2][0] = clientStorage.A10;  multInputBlocks[3][0] = clientStorage.A10;
+		multInputBlocks[2][1] = clientStorage.B00;  multInputBlocks[3][1] = clientStorage.B01;
+		multInputBlocks[2][2] = clientStorage.A11;  multInputBlocks[3][2] = clientStorage.A11;
+		multInputBlocks[2][3] = clientStorage.B10;  multInputBlocks[3][3] = clientStorage.B11;
 
 		GRPC_Channels_LinkedList channels_inUse = GRPC_Channels_LinkedList.getChannels(clientConfig.GRPC_SERVERS_NEEDED);
 
 		for (int tile = 0; tile < 4; tile++) {
 			for (int multBlocks = 0; multBlocks < 4; multBlocks+= 2) {
-				this.asyncMultiply(channels_inUse.channel, outputMultiplyObserver, tile, blocks[tile][multBlocks], blocks[tile][multBlocks+1]);
+				this.asyncMultiply(channels_inUse.channel, outputMultiplyObserver,
+						tile, multInputBlocks[tile][multBlocks], multInputBlocks[tile][multBlocks+1]);
 
 				channels_inUse =  channels_inUse.next;
 			}
 		}
 
 		try {
-
-			if(!splitLatches.await(8* clientConfig.INPUT_FOOTPRINT, TimeUnit.NANOSECONDS)) {
+			if(!multiplyLatches.await(8* clientConfig.INPUT_FOOTPRINT, TimeUnit.NANOSECONDS)) {
 				System.out.println("[WARNING] Did not meet multiply deadline!");
 			}
 
-			// [ADD]
+			int[][][] C = new int[4][][];
+			C[0] = clientStorage.C00; C[1] = clientStorage.C01;
+			C[2] = clientStorage.C10; C[3] = clientStorage.C11;
 
+			CountDownLatch additionLatches = new CountDownLatch(4);
+			StreamObserver<Output> outputAdditionObserver = new StreamObserver<Output>() {
+				@Override
+				public void onNext(Output value) {
+					System.out.println("[ADD] Received from server tile " + value.getTile());
+
+					C[value.getTile()] = Utils.toArray(value.getSize(), value.getOutput());
+					additionLatches.countDown();
+				}
+				@Override
+				public void onError(Throwable t) {
+				}
+				@Override
+				public void onCompleted() {
+				}
+			};
+
+			for (int tile = 0; tile < 4; tile++) {
+				this.asyncAdd(channels_inUse.channel, outputAdditionObserver,
+						tile, multOutputBlocks.get(tile).get(0), multOutputBlocks.get(tile).get(1));
+
+				channels_inUse =  channels_inUse.next;
+			}
+
+			try {
+				additionLatches.await();
+
+				MergeInput mergeInput = MergeInput.newBuilder()
+						.setC00(Utils.toMatrix(clientStorage.C00))
+						.setC01(Utils.toMatrix(clientStorage.C01))
+						.setC10(Utils.toMatrix(clientStorage.C10))
+						.setC11(Utils.toMatrix(clientStorage.C11))
+						.setInputSize(clientStorage.inputSize)
+						.setBlockSize(clientStorage.blockSize)
+						.build();
+				clientStorage.C = Utils.toArray(clientStorage.inputSize,
+						MatrixFormingGrpc.newBlockingStub(channels_inUse.channel).outputMerging(mergeInput).getOutput());
+
+				return new MatrixOutput(clientStorage.blockSize,clientStorage.inputSize,
+						clientStorage.C00, clientStorage.C01, clientStorage.C10, clientStorage.C11, clientStorage.C,
+						(int) TimeUnit.NANOSECONDS.toMillis(clientConfig.INPUT_FOOTPRINT), clientConfig.GRPC_SERVERS_NEEDED);
+
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+		return null;
+	}
 
+	public long getFootprint(int[][] a, int[][] b, int blockSize) {
+
+		InputBlocks multiplyInput = Utils.arrayInputBuilder(blockSize, -1, a, b);
+		MatrixMultBlockingStub footPrintStream = MatrixMultGrpc.newBlockingStub(clientConfig.GRPC_Channels.get(0));
+
+		long startTime = System.nanoTime();
+		footPrintStream.syncMultiplyBlocks(multiplyInput);
+		long elapsedNanos = System.nanoTime() - startTime;
+
+		return elapsedNanos;
 	}
 }
-
 class GRPC_Channels_LinkedList {
 
 	public ManagedChannel channel;

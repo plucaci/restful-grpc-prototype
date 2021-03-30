@@ -41,9 +41,11 @@ message Output {
 }
 
 service MatrixMult {
-	rpc asyncMultiply_block(stream InputBlocks) returns (Output);
-	rpc syncMultiply_block(InputBlocks) returns (Output);
-	rpc add_block(InputBlocks) returns (Output);
+	rpc asyncMultiply_blocks(stream InputBlocks) returns (Output);
+	rpc syncMultiply_blocks(InputBlocks) returns (Output);
+
+	rpc asyncAdd_blocks(stream InputBlocks) returns (Output);
+	rpc syncAdd_blocks(InputBlocks) returns (Output);
 }
 
 service MatrixForming {

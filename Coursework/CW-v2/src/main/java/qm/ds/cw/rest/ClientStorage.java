@@ -65,5 +65,9 @@ class ClientStorage {
 		B10 = new int[blockSize][blockSize];
 		B11 = new int[blockSize][blockSize];
 
+		C00 = new int[blockSize][blockSize];
+		C01 = new int[blockSize][blockSize];
+		C10 = new int[blockSize][blockSize];
+		C11 = new int[blockSize][blockSize];
 	}
 }
