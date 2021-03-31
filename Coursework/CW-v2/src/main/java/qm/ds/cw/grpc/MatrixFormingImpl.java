@@ -74,10 +74,10 @@ public class MatrixFormingImpl extends MatrixFormingImplBase {
 
                 int blockSize = value.getBlockSize();
                 int tile = value.getTile();
-                int[][] outputBlockC = inputSplitting(input, inputSize, blockSize, tile);
+                int[][] outputBlock = inputSplitting(input, inputSize, blockSize, tile);
 
                 blockResponse
-                            .setOutput(Utils.toMatrix(outputBlockC))
+                            .setOutput(Utils.toMatrix(outputBlock))
                             .setSize(blockSize)
                             .setTile(tile)
                             .setMatrixIndex(value.getMatrixIndex());

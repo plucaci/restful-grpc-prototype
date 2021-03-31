@@ -97,21 +97,17 @@ class ClientHelper {
 		}
 
 		try {
-
 			if(splitLatches.await(timeout, TimeUnit.NANOSECONDS)) {
-
 				return new MatrixOutput(0, 0,
 						splits.get(0), splits.get(1), splits.get(2), splits.get(3),
 						null, 0, 0
 				);
 			}
-
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 
 		return null;
-
 	}
 
 	public void asyncMultiply(ManagedChannel channel, StreamObserver<Output> outputObserver, int tile, int[][] a, int[][] b) {
