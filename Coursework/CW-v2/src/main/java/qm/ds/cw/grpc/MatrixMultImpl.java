@@ -80,6 +80,7 @@ public class MatrixMultImpl extends MatrixMultImplBase {
 
 				blockResponse
 							.setOutput( Utils.toMatrix(outputBlock) )
+							.setSize(value.getBlockSize())
 							.setTile(value.getTile());
 			}
 			@Override
@@ -116,6 +117,7 @@ public class MatrixMultImpl extends MatrixMultImplBase {
 
 				blockResponse
 						.setOutput( Utils.toMatrix(outputBlock) )
+						.setSize(value.getBlockSize())
 						.setTile(value.getTile());
 			}
 			@Override

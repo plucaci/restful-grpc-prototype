@@ -63,8 +63,10 @@ class ClientHelper {
 				.setBlockSize(clientStorage.blockSize);
 
 		ArrayList<int[][]> splits = new ArrayList<>();
-		splits.add(0, null); splits.add(1, null);
-		splits.add(2, null); splits.add(3, null);
+		splits.add(0, null);
+		splits.add(1, null);
+		splits.add(2, null);
+		splits.add(3, null);
 
 		CountDownLatch splitLatches = new CountDownLatch(4);
 		StreamObserver<Output> outputSplitsObserver = new StreamObserver<Output>() {
@@ -85,6 +87,8 @@ class ClientHelper {
 			public void onCompleted() {
 			}
 		};
+
+
 
 		for (int tile = 0; tile < 4; tile++) {
 
@@ -168,10 +172,9 @@ class ClientHelper {
 		multInputBlocks[2][2] = clientStorage.A11;  multInputBlocks[3][2] = clientStorage.A11;
 		multInputBlocks[2][3] = clientStorage.B10;  multInputBlocks[3][3] = clientStorage.B11;
 
+
 		GRPC_Channels_LinkedList channels_inUse = GRPC_Channels_LinkedList.getChannels(clientConfig.GRPC_SERVERS_NEEDED);
-
 		for (int tile = 0; tile < 4; tile++) {
-
 			for (int multBlocks = 0; multBlocks < 4; multBlocks+= 2) {
 
 				this.asyncMultiply(channels_inUse.channel, outputMultiplyObserver,
@@ -187,8 +190,10 @@ class ClientHelper {
 			}
 
 			ArrayList<int[][]> C = new ArrayList<>();
-			C.add(0, null); C.add(1, null);
-			C.add(2, null); C.add(3, null);
+			C.add(0, null);
+			C.add(1, null);
+			C.add(2, null);
+			C.add(3, null);
 
 			CountDownLatch additionLatches = new CountDownLatch(4);
 			StreamObserver<Output> outputAdditionObserver = new StreamObserver<Output>() {
@@ -197,13 +202,12 @@ class ClientHelper {
 					System.out.println("[ADD] Received from server tile " + value.getTile());
 
 					int[][] arr = Utils.toArray(value.getSize(), value.getOutput());
-					for (int[] ints : arr) {
-						for (int anInt : ints) {
-							System.out.println(anInt);
-						}
-					}
+					int tile = value.getTile();
 
-					C.set(value.getTile(), arr);
+
+					C.set(tile, arr);
+
+
 					additionLatches.countDown();
 				}
 				@Override
