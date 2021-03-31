@@ -70,28 +70,19 @@ public class Client {
 				getClientStorage().B00 = splitsMatrixB.getBlock00(); getClientStorage().B01 = splitsMatrixB.getBlock01();
 				getClientStorage().B10 = splitsMatrixB.getBlock10(); getClientStorage().B11 = splitsMatrixB.getBlock11();
 
-
 				getClientConfig().INPUT_FOOTPRINT = getClientHelper().getFootprint(
 						// however, other blocks could have large(r) values
 						getClientStorage().A00, getClientStorage().A01, getClientStorage().blockSize);
 
 				getClientConfig().GRPC_SERVERS_NEEDED = 1 + (int)((8*getClientConfig().INPUT_FOOTPRINT)/getClientConfig().GRPC_SERVER_DEADLINE);
 
+				return getClientHelper().getDotProduct();
 			} else {
 				return new Reply("Set deadline (in seconds) at /set?deadline=", ReplyType.ERROR);
 			}
 		} else {
 			return new Reply("Set GRPC Server port to be used for footprinting at /set?footprint_port=", ReplyType.ERROR);
 		}
-
-
-		MatrixOutput matOut = new MatrixOutput(getClientStorage().blockSize, getClientStorage().inputSize,
-				getClientStorage().A00,getClientStorage().A01, getClientStorage().A10, getClientStorage().A11, getClientStorage().A,
-				(int) TimeUnit.NANOSECONDS.toMillis(getClientConfig().INPUT_FOOTPRINT), getClientConfig().GRPC_SERVERS_NEEDED);
-
-
-		getClientStorage().wipeStorage();
-		return matOut;
 	}
 
 	@RequestMapping(value = "/deadline", method = RequestMethod.POST)

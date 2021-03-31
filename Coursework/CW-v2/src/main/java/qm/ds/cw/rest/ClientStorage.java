@@ -32,14 +32,15 @@ class ClientStorage {
 	public boolean saveInput(int[][] in) {
 		if (A == null) {
 			A = in;
-
 			return true;
+
 		} else if (B == null) {
 			B = in;
 			return false;
-		}
-		return false;
 
+		}
+
+		return false;
 	}
 
 	public void wipeStorage() {

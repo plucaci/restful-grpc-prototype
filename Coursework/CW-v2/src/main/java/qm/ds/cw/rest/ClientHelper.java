@@ -74,6 +74,7 @@ class ClientHelper {
 				System.out.println(
 						"[INPUT SPLIT] Received from server tile " + value.getTile() + " for matrix with index " + value.getMatrixIndex()
 				);
+
 				splits.set(value.getTile(), Utils.toArray(value.getSize(), value.getOutput()));
 				splitLatches.countDown();
 			}
@@ -88,7 +89,6 @@ class ClientHelper {
 		for (int tile = 0; tile < 4; tile++) {
 
 			StreamObserver<SplitInput> split;
-			System.out.println(portIndex);
 			split = MatrixFormingGrpc.newStub(clientConfig.GRPC_Channels.get(portIndex)).inputSplitting(outputSplitsObserver);
 			portIndex++;
 
@@ -122,7 +122,7 @@ class ClientHelper {
 	}
 	public void asyncAdd(ManagedChannel channel, StreamObserver<Output> outputObserver, int tile, Output multOutputA, Output multOutputB) {
 
-		InputBlocks inputBlocks = Utils.objectInputBuilder(clientStorage.blockSize, tile, multOutputA, multOutputA);
+		InputBlocks inputBlocks = Utils.objectInputBuilder(clientStorage.blockSize, tile, multOutputA, multOutputB);
 
 		StreamObserver<InputBlocks> inputBlocksStream;
 		inputBlocksStream = MatrixMultGrpc.newStub(channel).asyncAddBlocks(outputObserver);
@@ -134,12 +134,11 @@ class ClientHelper {
 
 	public MatrixOutput getDotProduct() {
 
-		CountDownLatch multiplyLatches = new CountDownLatch(8);
-
 		HashMap<Integer, ArrayList<Output>> multOutputBlocks = new HashMap<>();
 		multOutputBlocks.put(0, new ArrayList<>()); multOutputBlocks.put(1, new ArrayList<>());
 		multOutputBlocks.put(2, new ArrayList<>()); multOutputBlocks.put(3, new ArrayList<>());
 
+		CountDownLatch multiplyLatches = new CountDownLatch(8);
 		StreamObserver<Output> outputMultiplyObserver = new StreamObserver<Output>() {
 			@Override
 			public void onNext(Output value) {
@@ -158,12 +157,12 @@ class ClientHelper {
 			}
 		};
 
-		int[][][][] multInputBlocks = new int[4][4][][];
+		int[][][][] multInputBlocks = new int[4][4][clientStorage.blockSize][clientStorage.blockSize];
 		multInputBlocks[0][0] = clientStorage.A00;  multInputBlocks[1][0] = clientStorage.A00;
 		multInputBlocks[0][1] = clientStorage.B00;  multInputBlocks[1][1] = clientStorage.B01;
 		multInputBlocks[0][2] = clientStorage.A01;  multInputBlocks[1][2] = clientStorage.A01;
 		multInputBlocks[0][3] = clientStorage.B10;  multInputBlocks[1][3] = clientStorage.B11;
-		
+
 		multInputBlocks[2][0] = clientStorage.A10;  multInputBlocks[3][0] = clientStorage.A10;
 		multInputBlocks[2][1] = clientStorage.B00;  multInputBlocks[3][1] = clientStorage.B01;
 		multInputBlocks[2][2] = clientStorage.A11;  multInputBlocks[3][2] = clientStorage.A11;
@@ -172,7 +171,9 @@ class ClientHelper {
 		GRPC_Channels_LinkedList channels_inUse = GRPC_Channels_LinkedList.getChannels(clientConfig.GRPC_SERVERS_NEEDED);
 
 		for (int tile = 0; tile < 4; tile++) {
+
 			for (int multBlocks = 0; multBlocks < 4; multBlocks+= 2) {
+
 				this.asyncMultiply(channels_inUse.channel, outputMultiplyObserver,
 						tile, multInputBlocks[tile][multBlocks], multInputBlocks[tile][multBlocks+1]);
 
@@ -185,9 +186,9 @@ class ClientHelper {
 				System.out.println("[WARNING] Did not meet multiply deadline!");
 			}
 
-			int[][][] C = new int[4][][];
-			C[0] = clientStorage.C00; C[1] = clientStorage.C01;
-			C[2] = clientStorage.C10; C[3] = clientStorage.C11;
+			ArrayList<int[][]> C = new ArrayList<>();
+			C.add(0, null); C.add(1, null);
+			C.add(2, null); C.add(3, null);
 
 			CountDownLatch additionLatches = new CountDownLatch(4);
 			StreamObserver<Output> outputAdditionObserver = new StreamObserver<Output>() {
@@ -195,7 +196,14 @@ class ClientHelper {
 				public void onNext(Output value) {
 					System.out.println("[ADD] Received from server tile " + value.getTile());
 
-					C[value.getTile()] = Utils.toArray(value.getSize(), value.getOutput());
+					int[][] arr = Utils.toArray(value.getSize(), value.getOutput());
+					for (int[] ints : arr) {
+						for (int anInt : ints) {
+							System.out.println(anInt);
+						}
+					}
+
+					C.set(value.getTile(), arr);
 					additionLatches.countDown();
 				}
 				@Override
@@ -214,23 +222,31 @@ class ClientHelper {
 			}
 
 			try {
-				additionLatches.await();
+				if(additionLatches.await(4, TimeUnit.SECONDS)) {
 
-				MergeInput mergeInput = MergeInput.newBuilder()
-						.setC00(Utils.toMatrix(clientStorage.C00))
-						.setC01(Utils.toMatrix(clientStorage.C01))
-						.setC10(Utils.toMatrix(clientStorage.C10))
-						.setC11(Utils.toMatrix(clientStorage.C11))
-						.setInputSize(clientStorage.inputSize)
-						.setBlockSize(clientStorage.blockSize)
-						.build();
-				clientStorage.C = Utils.toArray(clientStorage.inputSize,
-						MatrixFormingGrpc.newBlockingStub(channels_inUse.channel).outputMerging(mergeInput).getOutput());
+					clientStorage.C00 = C.get(0);
+					clientStorage.C01 = C.get(1);
+					clientStorage.C10 = C.get(2);
+					clientStorage.C11 = C.get(3);
 
-				return new MatrixOutput(clientStorage.blockSize,clientStorage.inputSize,
-						clientStorage.C00, clientStorage.C01, clientStorage.C10, clientStorage.C11, clientStorage.C,
-						(int) TimeUnit.NANOSECONDS.toMillis(clientConfig.INPUT_FOOTPRINT), clientConfig.GRPC_SERVERS_NEEDED);
+					MergeInput mergeInput = MergeInput.newBuilder()
+							.setC00(Utils.toMatrix(clientStorage.C00))
+							.setC01(Utils.toMatrix(clientStorage.C01))
+							.setC10(Utils.toMatrix(clientStorage.C10))
+							.setC11(Utils.toMatrix(clientStorage.C11))
+							.setInputSize(clientStorage.inputSize)
+							.setBlockSize(clientStorage.blockSize)
+							.build();
 
+					System.out.println(mergeInput);
+
+					clientStorage.C = Utils.toArray(clientStorage.inputSize,
+							MatrixFormingGrpc.newBlockingStub(channels_inUse.channel).outputMerging(mergeInput).getOutput());
+
+					return new MatrixOutput(clientStorage.blockSize, clientStorage.inputSize,
+							clientStorage.C00, clientStorage.C01, clientStorage.C10, clientStorage.C11, clientStorage.C,
+							(int) TimeUnit.NANOSECONDS.toMillis(clientConfig.INPUT_FOOTPRINT), clientConfig.GRPC_SERVERS_NEEDED);
+				}
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
@@ -269,7 +285,7 @@ class GRPC_Channels_LinkedList {
 
 	public static GRPC_Channels_LinkedList getChannels(int numServers) {
 
-		if (numServers < ClientConfig.GRPC_SERVERS_USABLE) {
+		if (numServers > ClientConfig.GRPC_SERVERS_USABLE) {
 			System.out.println(
 					"[Warning] Only " + ClientConfig.GRPC_SERVERS_USABLE
 							+ " servers available, but required are " + numServers
@@ -282,7 +298,7 @@ class GRPC_Channels_LinkedList {
 		GRPC_Channels_LinkedList ptr = new GRPC_Channels_LinkedList(ClientConfig.GRPC_Channels.get(1));
 		GRPC_Channels_LinkedList head = ptr;
 
-		for (int portIndex = 2; portIndex <= 8; portIndex++) {
+		for (int portIndex = 2; portIndex <= numServers; portIndex++) {
 			ptr.next = new GRPC_Channels_LinkedList();
 			ptr = ptr.next;
 
