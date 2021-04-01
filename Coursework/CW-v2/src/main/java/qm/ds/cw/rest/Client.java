@@ -59,13 +59,13 @@ public class Client {
 			if (getClientConfig().GRPC_SERVER_DEADLINE != 0) {
 
 				MatrixOutput splitsMatrixA = getClientHelper()
-						.splitInputs(getClientStorage().A, 0, 1, getClientConfig().GRPC_SERVER_DEADLINE);
+						.splitInputs(getClientStorage().A, 0, 1);
 
 				getClientStorage().A00 = splitsMatrixA.getBlock00(); getClientStorage().A01 = splitsMatrixA.getBlock01();
 				getClientStorage().A10 = splitsMatrixA.getBlock10(); getClientStorage().A11 = splitsMatrixA.getBlock11();
 
 				MatrixOutput splitsMatrixB = getClientHelper()
-						.splitInputs(getClientStorage().B, 1, 1, getClientConfig().GRPC_SERVER_DEADLINE);
+						.splitInputs(getClientStorage().B, 1, 1);
 
 				getClientStorage().B00 = splitsMatrixB.getBlock00(); getClientStorage().B01 = splitsMatrixB.getBlock01();
 				getClientStorage().B10 = splitsMatrixB.getBlock10(); getClientStorage().B11 = splitsMatrixB.getBlock11();
@@ -76,7 +76,9 @@ public class Client {
 
 				getClientConfig().GRPC_SERVERS_NEEDED = 1 + (int)((8*getClientConfig().INPUT_FOOTPRINT)/getClientConfig().GRPC_SERVER_DEADLINE);
 
-				return getClientHelper().getDotProduct();
+				MatrixOutput result = getClientHelper().getDotProduct();
+				getClientStorage().wipeStorage();
+				return result;
 			} else {
 				return new Reply("Set deadline (in seconds) at /set?deadline=", ReplyType.ERROR);
 			}

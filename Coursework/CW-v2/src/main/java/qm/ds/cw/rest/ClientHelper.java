@@ -53,7 +53,7 @@ class ClientHelper {
 		}
 	}
 
-	public MatrixOutput splitInputs(int[][] input, int matrixIndex, int portIndex, long timeout) {
+	public MatrixOutput splitInputs(int[][] input, int matrixIndex, int portIndex) {
 
 		Matrix inMatrix = Utils.toMatrix(input);
 		SplitInput.Builder splitInputBuilder = SplitInput.newBuilder()
@@ -101,12 +101,14 @@ class ClientHelper {
 		}
 
 		try {
-			if(splitLatches.await(timeout, TimeUnit.NANOSECONDS)) {
-				return new MatrixOutput(0, 0,
-						splits.get(0), splits.get(1), splits.get(2), splits.get(3),
-						null, 0, 0
-				);
-			}
+			splitLatches.await();
+
+
+			return new MatrixOutput(0, 0,
+					splits.get(0), splits.get(1), splits.get(2), splits.get(3),
+					null, 0, 0
+			);
+
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -200,13 +202,7 @@ class ClientHelper {
 				@Override
 				public void onNext(Output value) {
 					System.out.println("[ADD] Received from server tile " + value.getTile());
-
-					int[][] arr = Utils.toArray(value.getSize(), value.getOutput());
-					int tile = value.getTile();
-
-
-					C.set(tile, arr);
-
+					C.set(value.getTile(), Utils.toArray(value.getSize(), value.getOutput()));
 
 					additionLatches.countDown();
 				}
@@ -241,8 +237,6 @@ class ClientHelper {
 							.setInputSize(clientStorage.inputSize)
 							.setBlockSize(clientStorage.blockSize)
 							.build();
-
-					System.out.println(mergeInput);
 
 					clientStorage.C = Utils.toArray(clientStorage.inputSize,
 							MatrixFormingGrpc.newBlockingStub(channels_inUse.channel).outputMerging(mergeInput).getOutput());

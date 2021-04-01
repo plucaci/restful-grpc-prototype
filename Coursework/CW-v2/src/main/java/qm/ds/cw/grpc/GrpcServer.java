@@ -38,6 +38,7 @@ public class GrpcServer {
 					.addService(new MatrixMultImpl())
 					.addService(new MatrixFormingImpl())
 					.addService(new HealthStatusImpl())
+					.maxInboundMessageSize(50000000)
 					.build();
 
     		server.start(); usableServers.put(atPort, server);

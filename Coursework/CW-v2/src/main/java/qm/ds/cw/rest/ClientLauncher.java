@@ -30,6 +30,7 @@ public class ClientLauncher {
 			int port = portNo + ClientConfig.FIRST_GRPC_USABLE_PORT;
 			ManagedChannel managedChannel = ManagedChannelBuilder
 					.forAddress("localhost", port)
+					.maxInboundMessageSize(50000000)
 					.usePlaintext()
 					.build();
 
