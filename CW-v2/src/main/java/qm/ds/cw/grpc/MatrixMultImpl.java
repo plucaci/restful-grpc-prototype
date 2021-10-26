@@ -4,16 +4,10 @@ import io.grpc.stub.StreamObserver;
 import qm.ds.cw.grpc.MatrixMultGrpc.MatrixMultImplBase;
 import qm.ds.cw.utils.Utils;
 
-import java.util.stream.Stream;
-
 public class MatrixMultImpl extends MatrixMultImplBase {
-    
-	public interface BlockOperation {
-    	int[][] execute(int[][] blockA, int[][] blockB, int blockSize);
-    }
-	
-	public BlockOperation multiplyBlocks = (blockA, blockB, blockSize) -> {
-    	int C[][]= new int[blockSize][blockSize];
+
+	public int[][] multiplyBlocks(int[][] blockA, int[][] blockB, int blockSize) {
+    	int[][] C = new int[blockSize][blockSize];
 		
     	for (int i=0;i<C.length;i++) {
     		
@@ -25,14 +19,12 @@ public class MatrixMultImpl extends MatrixMultImplBase {
 	    			dp += blockA[i][q]*blockB[q][j];
 	    		}
 	    		C[i][j] = dp;
-	    		
-	    		
     		}
     	}
     	return C;
-    };
-    public BlockOperation addBlocks = (blockA, blockB, blockSize) -> {
-    	int C[][]= new int[blockSize][blockSize];
+    }
+    public int[][] addBlocks(int[][] blockA, int[][] blockB, int blockSize) {
+    	int[][] C = new int[blockSize][blockSize];
     	
     	for (int i=0;i<C.length;i++) {
     		for (int j=0;j<C.length;j++) {
@@ -41,43 +33,38 @@ public class MatrixMultImpl extends MatrixMultImplBase {
     	}
     	
     	return C;
-    };
-    
-    
-	public int[][] processRequest(InputBlocks request, BlockOperation blockOperation) {
-    	
-		int blockSize = request.getBlockSize();
-		
-		int[][] blockA = Utils.toArray(blockSize, request.getBlockA());
-        int[][] blockB = Utils.toArray(blockSize, request.getBlockB());
-        
-        int[][] newBlock = blockOperation.execute(blockA, blockB, blockSize);
-
-		return newBlock;
     }
-	
+
+
+
 	@Override
     public void syncMultiplyBlocks(
       InputBlocks request, StreamObserver<Output> responseObserver) {
         System.out.println("[MULTIPLY] Request received from client:\n" + request);
-        
-        int[][] blockResponse = processRequest(request, multiplyBlocks);
-        
-        responseObserver.onNext(Output.newBuilder().setOutput(Utils.toMatrix(blockResponse)).setTile(request.getTile()).build());
+
+		int blockSize = request.getBlockSize();
+		int[][] blockA = Utils.toArray(blockSize, request.getBlockA());
+		int[][] blockB = Utils.toArray(blockSize, request.getBlockB());
+
+		int[][] outputBlock = addBlocks(blockA, blockB, blockSize);
+        responseObserver.onNext(Output.newBuilder().setOutput(Utils.toMatrix(outputBlock)).setTile(request.getTile()).build());
         responseObserver.onCompleted();
     }
 	@Override
 	public StreamObserver<InputBlocks> asyncMultiplyBlocks(StreamObserver<Output> responseObserver) {
 
 		return new StreamObserver<InputBlocks>() {
-			Output.Builder blockResponse = Output.newBuilder();
+			final Output.Builder blockResponse = Output.newBuilder();
 
 			@Override
 			public void onNext(InputBlocks value) {
 				System.out.println("[MULTIPLY] Request received from client:\n" + value);
 
-				int[][] outputBlock = processRequest(value, multiplyBlocks);
+				int blockSize = value.getBlockSize();
+				int[][] blockA = Utils.toArray(blockSize, value.getBlockA());
+				int[][] blockB = Utils.toArray(blockSize, value.getBlockB());
 
+				int[][] outputBlock = multiplyBlocks(blockA, blockB, blockSize);
 				blockResponse
 							.setOutput( Utils.toMatrix(outputBlock) )
 							.setSize(value.getBlockSize())
@@ -88,33 +75,45 @@ public class MatrixMultImpl extends MatrixMultImplBase {
 			}
 			@Override
 			public void onCompleted() {
+
+				// the pong effect: responseObserver being the client's representation inside the server
 				responseObserver.onNext(blockResponse.build());
+				responseObserver.onCompleted();
 			}
 		};
 	}
+
+
 
 	@Override
     public void syncAddBlocks(
       InputBlocks request, StreamObserver<Output> responseObserver) {
         System.out.println("[ADD] Request received from client:\n" + request);
-        
-        int[][] blockResponse = processRequest(request, addBlocks);
 
-		responseObserver.onNext(Output.newBuilder().setOutput(Utils.toMatrix(blockResponse)).setTile(request.getTile()).build());
+		int blockSize = request.getBlockSize();
+		int[][] blockA = Utils.toArray(blockSize, request.getBlockA());
+		int[][] blockB = Utils.toArray(blockSize, request.getBlockB());
+
+		int[][] outputBlock = addBlocks(blockA, blockB, blockSize);
+
+		responseObserver.onNext(Output.newBuilder().setOutput(Utils.toMatrix(outputBlock)).setTile(request.getTile()).build());
         responseObserver.onCompleted();
     }
     @Override
     public StreamObserver<InputBlocks> asyncAddBlocks(StreamObserver<Output> responseObserver) {
 
 		return new StreamObserver<InputBlocks>() {
-			Output.Builder blockResponse = Output.newBuilder();
+			final Output.Builder blockResponse = Output.newBuilder();
 
 			@Override
 			public void onNext(InputBlocks value) {
 				System.out.println("[ADD] Request received from client:\n" + value);
 
-				int[][] outputBlock = processRequest(value, addBlocks);
+				int blockSize = value.getBlockSize();
+				int[][] blockA = Utils.toArray(blockSize, value.getBlockA());
+				int[][] blockB = Utils.toArray(blockSize, value.getBlockB());
 
+				int[][] outputBlock = addBlocks(blockA, blockB, blockSize);
 				blockResponse
 						.setOutput( Utils.toMatrix(outputBlock) )
 						.setSize(value.getBlockSize())
@@ -125,7 +124,10 @@ public class MatrixMultImpl extends MatrixMultImplBase {
 			}
 			@Override
 			public void onCompleted() {
+
+				// the pong effect: responseObserver being the client's representation inside the server
 				responseObserver.onNext(blockResponse.build());
+				responseObserver.onCompleted();
 			}
 		};
 	}

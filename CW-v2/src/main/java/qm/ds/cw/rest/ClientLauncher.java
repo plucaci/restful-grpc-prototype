@@ -12,20 +12,8 @@ public class ClientLauncher {
 
 	public static void main(String[] args) {
 
-		ManagedChannel footPrintChannel = ManagedChannelBuilder
-				.forAddress("localhost", ClientConfig.GRPC_FOOTPRINT_PORT)
-				.usePlaintext()
-				.build();
-
-		if(isGrpcServerAlive(footPrintChannel)) {
-			ClientConfig.GRPC_Channels.add(footPrintChannel);
-			System.out.println("Successfully connected to footprint gRPC Server listening to port :" + ClientConfig.GRPC_FOOTPRINT_PORT);
-		} else {
-			System.out.println("[WARNING] Abort. Could not connect to footprint gRPC Server at port :" + ClientConfig.GRPC_FOOTPRINT_PORT);
-			return;
-		}
-
-		for (int portNo = 0; portNo < ClientConfig.GRPC_SERVERS_USABLE; portNo++) {
+		// Client can only connect to contiguous GRPC server ports, ranging from ClientConfig.FIRST_GRPC_USABLE_PORT
+		for (int portNo = 0; portNo < ClientConfig.NO_GRPC_SERVERS_USABLE; portNo++) {
 
 			int port = portNo + ClientConfig.FIRST_GRPC_USABLE_PORT;
 			ManagedChannel managedChannel = ManagedChannelBuilder
@@ -34,6 +22,7 @@ public class ClientLauncher {
 					.usePlaintext()
 					.build();
 
+			// Avoiding connection delays when taking footprint by connecting to all servers from the beginning ...
 			if(isGrpcServerAlive(managedChannel)) {
 				ClientConfig.GRPC_Channels.add(managedChannel);
 				System.out.println("Successfully connected to gRPC Server listening to port :" + port);
@@ -44,9 +33,12 @@ public class ClientLauncher {
 		}
 
 		if (ClientConfig.GRPC_Channels.size() > 0)  {
-			if (ClientConfig.GRPC_SERVERS_USABLE / 2 > ClientConfig.GRPC_Channels.size()) {
-				System.out.println("[WARNING] Fewer than half gRPC Servers available. Performance could be impacted.");
+			if ( (ClientConfig.NO_GRPC_SERVERS_USABLE / 2) > ClientConfig.GRPC_Channels.size()) {
+				System.out.println("[WARNING] Fewer than half of the default gRPC Servers available. Performance could be impacted.");
 			}
+
+			// Setting the actual number of usable servers... In case there are less than default
+			ClientConfig.NO_GRPC_SERVERS_USABLE = ClientConfig.GRPC_Channels.size();
 
 			SpringApplication.run(ClientLauncher.class, args);
 
@@ -55,6 +47,8 @@ public class ClientLauncher {
 		}
 	}
 
+	// Pinging to detect whether 1) the server is up and running, and 2) to reduce connection delays upon getting the footprint
+	// In essence, if the footprint is the first time either channel is used, this implies delays on top of the footprint itself
 	public static boolean isGrpcServerAlive(ManagedChannel managedChannel) {
 		try {
 			HealthStatusGrpc.newBlockingStub(managedChannel).checkHealth(Health.newBuilder().setHealth("ping").build());
@@ -62,17 +56,5 @@ public class ClientLauncher {
 		} catch (Exception e) {
 			return false;
 		}
-	}
-
-	public static boolean doesChannelExist(ManagedChannel managedChannel) {
-
-		String managedChannelAuthority = managedChannel.authority();
-		for (ManagedChannel grpc_channel : ClientConfig.GRPC_Channels) {
-			if (grpc_channel.authority().equalsIgnoreCase(managedChannelAuthority)) {
-				return true;
-			}
-		}
-
-		return false;
 	}
 }

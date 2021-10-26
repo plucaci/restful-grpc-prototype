@@ -1,6 +1,6 @@
 package qm.ds.cw.rest.models;
 
-public class Reply implements Response{
+public class Reply implements Response {
 	
 	private String message = "";
 	private ReplyType replyType;

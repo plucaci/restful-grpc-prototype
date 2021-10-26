@@ -4,8 +4,6 @@ import io.grpc.stub.StreamObserver;
 import qm.ds.cw.grpc.MatrixFormingGrpc.MatrixFormingImplBase;
 import qm.ds.cw.utils.Utils;
 
-import static io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall;
-
 public class MatrixFormingImpl extends MatrixFormingImplBase {
 
     public int[][] inputSplitting(int[][] in, int inputSize, int blockSize, int tile) {
@@ -79,17 +77,19 @@ public class MatrixFormingImpl extends MatrixFormingImplBase {
                 blockResponse
                             .setOutput(Utils.toMatrix(outputBlock))
                             .setSize(blockSize)
-                            .setTile(tile)
-                            .setMatrixIndex(value.getMatrixIndex());
+                            .setTile(tile) // tiles: 0-3 incl., to maintain order upon receiving in the client. And for status.
+                            .setMatrixIndex(value.getMatrixIndex()); // matrix index: 0 for A, 1 for B. As above.
             }
 
             @Override
             public void onError(Throwable t) {
-
             }
             @Override
             public void onCompleted() {
+
+                // the pong effect: responseObserver being the representation of the client inside the server
                 responseObserver.onNext(blockResponse.build());
+                responseObserver.onCompleted();
             }
         };
     }

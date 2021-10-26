@@ -44,31 +44,41 @@ class ClientStorage {
 	}
 
 	public void wipeStorage() {
-		A = null;
-		B = null;
-		C = null;
+		this.A = null;
+		this.A00 = null;
+		this.A01 = null;
+		this.A10 = null;
+		this.A11 = null;
 
-		inputSize = 0;
-		blockSize = 0;
+		this.B = null;
+		this.B00 = null;
+		this.B01 = null;
+		this.B10 = null;
+		this.B11 = null;
+
+		this.C = null;
+		this.C00 = null;
+		this.C01 = null;
+		this.C10 = null;
+		this.C11 = null;
+
+		this.inputSize = 0;
+		this.blockSize = 0;
 	}
 
 	public void saveBlockSize(int inputSize) {
 
 		blockSize = (inputSize == 4) ? 2 : inputSize / 2;
 
-		A00 = new int[blockSize][blockSize];
-		A01 = new int[blockSize][blockSize];
-		A10 = new int[blockSize][blockSize];
-		A11 = new int[blockSize][blockSize];
-
-		B00 = new int[blockSize][blockSize];
-		B01 = new int[blockSize][blockSize];
-		B10 = new int[blockSize][blockSize];
-		B11 = new int[blockSize][blockSize];
-
 		C00 = new int[blockSize][blockSize];
 		C01 = new int[blockSize][blockSize];
 		C10 = new int[blockSize][blockSize];
 		C11 = new int[blockSize][blockSize];
 	}
+
+	public boolean hasSplits() {
+		return  this.A00 != null && this.A01 != null && this.A10 != null && this.A11 != null &&
+				this.B00 != null && this.B01 != null && this.B10 != null && this.B11 != null;
+	}
+
 }

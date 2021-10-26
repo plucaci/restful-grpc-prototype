@@ -1,5 +1,5 @@
 package qm.ds.cw.rest.models;
 
-public interface Response {
-
-}
+// Sole datatype of all REST models
+// Ensures flexibility for returning different objects in the same Response-type methods
+public interface Response { }

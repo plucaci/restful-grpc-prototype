@@ -1,47 +1,82 @@
 package qm.ds.cw.grpc;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 
 public class GrpcServer {
 
-	private static int FOOT_PRINT_SERVER_PORT = 8080;
-	private static int FIRST_USABLE_PORT      = 8081;
-	private static int NUM_USABLE_SERVERS     = 13;
+	private static int FIRST_GRPC_USABLE_PORT; // first port in contiguous series of ports meant for GRPC Servers (default: 8080)
+	private static int NO_GRPC_SERVERS_USABLE; // number of available servers (default: number of machine's CPU cores)
 
-	public static HashMap<Integer, Server> usableServers = new HashMap<>();
-	
-    public static void main(String[] args) throws IOException, InterruptedException {
+	private static ExecutorService serversPool;
 
-    	if (args.length == 3) {
-			FOOT_PRINT_SERVER_PORT = Integer.getInteger(args[0]);
-			FIRST_USABLE_PORT = Integer.getInteger(args[1]);
-			NUM_USABLE_SERVERS = Integer.getInteger(args[2]);
+	// If Server-side exported to runnable JAR file, args order in terminal: FIRST_GRPC_USABLE_PORT, NO_GRPC_SERVERS_USABLE
+    public static void main(String[] args) {
+
+		if (args.length == 2) { // For compiled JAR files...
+			FIRST_GRPC_USABLE_PORT = Integer.getInteger(args[0]);
+
+			NO_GRPC_SERVERS_USABLE = Integer.getInteger(args[1]);
+			// Determining, on Server-side, whether the number of total given number of required servers can be acquired:
+			// min(availableProcessors(), number of servers requested (via CLI) )
+			if (NO_GRPC_SERVERS_USABLE > Runtime.getRuntime().availableProcessors()) {
+				System.out.println("[WARNING] Number of servers requested exceeds allowed available resources. " +
+						"Requested " + NO_GRPC_SERVERS_USABLE + ", but available are only " + Runtime.getRuntime().availableProcessors() +
+						". Will use maximum available.");
+				NO_GRPC_SERVERS_USABLE = Runtime.getRuntime().availableProcessors();
+			}
+		} else { // In Development / Testing...
+			// default is maximum available
+			NO_GRPC_SERVERS_USABLE = Runtime.getRuntime().availableProcessors();
+
+			FIRST_GRPC_USABLE_PORT = 8080;
 		}
 
-    	launchGrpcServer(FOOT_PRINT_SERVER_PORT);
-    	for (int portNo = 0; portNo < NUM_USABLE_SERVERS; portNo++) {
-			launchGrpcServer(FIRST_USABLE_PORT + portNo);
+		// Thread pool, 1 thread in thread-pool per CPU core
+		serversPool = Executors.newFixedThreadPool(NO_GRPC_SERVERS_USABLE);
+    	for (int portNo = 0; portNo < NO_GRPC_SERVERS_USABLE; portNo++) {
+			launchGrpcServer(FIRST_GRPC_USABLE_PORT + portNo);
 		}
-
-    	usableServers.get(FIRST_USABLE_PORT + NUM_USABLE_SERVERS-1).awaitTermination();
 
     }
-    
-	public static void launchGrpcServer(int atPort)  throws IOException, InterruptedException {
-        System.out.println("Starting server at " + atPort);
-    		Server server = ServerBuilder.forPort(atPort)
-					.addService(new MatrixMultImpl())
-					.addService(new MatrixFormingImpl())
-					.addService(new HealthStatusImpl())
-					.maxInboundMessageSize(50000000)
-					.build();
 
-    		server.start(); usableServers.put(atPort, server);
-    		System.out.println("Server at :" + atPort + " started successfully!\n");
+	public static void launchGrpcServer(int port) {
+        System.out.println("Starting server listening to port :" + port);
+
+        Server server = ServerBuilder.forPort(port)
+				.addService(new MatrixMultImpl())
+				.addService(new MatrixFormingImpl())
+				.addService(new HealthStatusImpl())
+				.maxInboundMessageSize(50000000)
+				.build();
+
+        // Multithreading for load balancing + non-blocking upon awaitTermination()
+		serversPool.execute(new GrpcServerLauncher(server));
+	}
+}
+
+class GrpcServerLauncher implements Runnable {
+
+	private Server server;
+
+	public GrpcServerLauncher (Server server) {
+		this.server = server;
+	}
+
+	@Override
+	public void run() {
+		try {
+
+			server.start();
+			System.out.println("Server listening to port :" + server.getPort() + " started successfully!");
+			server.awaitTermination();
+
+		} catch (IOException | InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 }
