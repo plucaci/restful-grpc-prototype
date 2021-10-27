@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_generic_services = true;
+
+package qm.ds.lab1.grpc;
+
+message Matrix {
+	repeated int32 flatten = 1;
+}
+
+message Input {
+	Matrix blockA = 1;
+	Matrix blockB = 2;
+	int32 blockSize = 3;
+}
+
+message Output {
+	Matrix blockC = 1;
+	int32 blockSize = 2;
+}
+
+service MatrixMult {
+    rpc multiply_block(Input) returns (Output);
+    rpc add_block(Input) returns (Output);
+}
